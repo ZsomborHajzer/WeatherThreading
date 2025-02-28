@@ -1,0 +1,23 @@
+
+Project plan basic:
+
+We make request to an external weather api per location to retrieve historical weather data of the area.
+
+If the data exists on our local database, we fetch the data from the database, using linq.
+
+If the data does not exist on our local database, we can make a connection pool to the database to upload the data
+
+We can make the requests to the api in an Async Await manner.
+
+We can process and generate figures out of the data and generate figures and graphs on the front end of the razor app.
+
+
+API CALLS -> ASYNC IO
+
+DATABASE CALLS -> Threadpool
+
+DATABASE FETCH -> LINQ
+
+DATA LOADING WITH PROGRESS BAR -> Display a progress bar on the front end while BACKGROUND workers process the data in PARALLEL and until the figure is generated
+
+
