@@ -1,0 +1,6 @@
+@WeatherThreading.Server_HostAddress = http://localhost:5251
+
+GET {{WeatherThreading.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
