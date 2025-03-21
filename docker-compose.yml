@@ -1,0 +1,26 @@
+services:
+  app:
+    build: .
+    container_name: weather_app
+    depends_on:
+      - mysql
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=mysql;Database=weather_db;User=root;Password=yourpassword;
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+
+  mysql:
+    image: mysql:latest
+    container_name: weather_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: changeme
+      MYSQL_DATABASE: weather_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
