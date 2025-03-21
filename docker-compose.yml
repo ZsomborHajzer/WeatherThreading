@@ -5,10 +5,10 @@ services:
     depends_on:
       - mysql
     environment:
-      - ConnectionStrings__DefaultConnection=Server=mysql;Database=weather_db;User=root;Password=yourpassword;
+      - ConnectionStrings__DefaultConnection=Server=mysql;Database=weather_db;User=root;Password=changeme;
     ports:
       - "8080:8080"
-      - "8081:8081"
+      - "52975:52975"
 
   mysql:
     image: mysql:latest
@@ -21,6 +21,7 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./WeatherThreading.Server/WeatherData.sql:/docker-entrypoint-initdb.d/WeatherData.sql
 
 volumes:
   mysql_data:
