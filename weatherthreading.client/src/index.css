@@ -66,3 +66,76 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+.dashboard-container {
+  padding: 1rem;
+}
+
+.dashboard-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.dashboard-card {
+  padding: 1rem;
+}
+
+.search-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.search-label {
+  margin-right: 10px;
+  font-weight: bold;
+}
+
+.x-axis-container {
+  margin-bottom: 20px;
+}
+
+.x-axis-label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.date-selectors {
+  display: flex;
+  gap: 20px;
+}
+
+.date-selector {
+  display: flex;
+  align-items: center;
+}
+
+.y-axis-container {
+  margin-bottom: 20px;
+}
+
+.y-axis-label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+.input-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.input-label {
+  width: 100px; 
+  font-weight: bold;
+}
+
+.dashboard-search, 
+.date-input, 
+.y-axis-dropdown {
+  flex: 1;
+  padding: 8px;
+  font-size: 16px;
+}
