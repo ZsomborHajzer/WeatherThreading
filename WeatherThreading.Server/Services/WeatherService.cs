@@ -52,6 +52,7 @@ public class WeatherService : IWeatherService
             var timeChunks = TimeRangeSplitter.SplitTimeRange(request.StartDate, request.EndDate);
             
             // Create tasks for each time chunk
+            //! Maybe semaphore here to limit the number of concurrent requests
             var tasks = timeChunks.Select(chunk => 
                 FetchWeatherDataForTimeRange(
                     request.Latitude,
@@ -119,6 +120,7 @@ public class WeatherService : IWeatherService
             Daily = new Dictionary<string, List<object>>()
         };
 
+        //! We could also add threading here to speed up the merging process (think read/write lock or plinq)
         // Merge all results
         foreach (var result in results)
         {
@@ -160,5 +162,20 @@ public class WeatherService : IWeatherService
         }
 
         return mergedResponse;
+    }
+
+    private async Task SaveWeatherDataToDatabase(WeatherDataResponse weatherData)
+    {
+        //! We could save the data to the database here
+    }
+
+    private async Task<WeatherDataResponse> GetWeatherDataFromDatabase(WeatherDataRequest request)
+    {
+        //! We could get the data from the database here
+    }
+
+    private async Task<WeatherDataResponse> FormatWeatherData(WeatherDataResponse weatherData)
+    {
+        //! We could format the data here
     }
 } 
