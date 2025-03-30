@@ -39,6 +39,12 @@ public class DailyUnits
 
     [JsonPropertyName("temperature_2m_max")]
     public string Temperature2mMax { get; set; } = string.Empty;
+
+    [JsonPropertyName("temperature_2m_min")]
+    public string Temperature2mMin { get; set; } = string.Empty;
+
+    [JsonPropertyName("relative_humidity_2m")]
+    public string RelativeHumidity2m { get; set; } = string.Empty;
 }
 
 public class DailyData
@@ -48,4 +54,10 @@ public class DailyData
 
     [JsonPropertyName("temperature_2m_max")]
     public List<double> Temperature2mMax { get; set; } = new();
+
+    [JsonPropertyName("temperature_2m_min")]
+    public List<double> Temperature2mMin { get; set; } = new();
+
+    [JsonPropertyName("relative_humidity_2m")]
+    public List<double> RelativeHumidity2m { get; set; } = new();
 } 
