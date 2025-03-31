@@ -2,27 +2,23 @@ using Microsoft.EntityFrameworkCore;
 using WeatherThreading.Models;
 using Pomelo.EntityFrameworkCore.MySql;
 using WeatherThreading.Services;
+using WeatherThreading.Server.Data.Configurations;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-// Register HttpClient and WeatherService
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IWeatherService, WeatherService>();
 
-// Configure database
-builder.Services.AddDbContext<WeatherContext>(opt =>
-    opt.UseMySql(
+builder.Services.AddDbContext<WeatherContext>(options =>
+    options.UseMySql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
     ));
 
-// Configure CORS
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(builder =>
@@ -35,7 +31,12 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<WeatherContext>();
+    context.Database.Migrate();
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -50,7 +51,6 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapFallbackToFile("/index.html");
 
-// Configure the port
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Urls.Add($"http://+:{port}");
 

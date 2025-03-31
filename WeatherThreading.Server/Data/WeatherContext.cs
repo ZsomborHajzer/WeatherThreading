@@ -15,4 +15,6 @@ public class WeatherContext : DbContext
     public DbSet<Temperature> Temperature { get; set; } = default!;
     public DbSet<Precipitation> Precipitation { get; set; } = default!;
     public DbSet<Wind> Wind { get; set; } = default!;
+    public DbSet<PrecipitationHours> PrecipitationHours { get; set; } = default!;
+    public DbSet<Radiation> Radiation { get; set; } = default!;
 }
