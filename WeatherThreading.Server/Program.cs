@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using WeatherThreading.Models;
 using Pomelo.EntityFrameworkCore.MySql;
+using WeatherThreading.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,10 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Register HttpClient and WeatherService
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IWeatherService, WeatherService>();
 
 // Configure database
 builder.Services.AddDbContext<WeatherContext>(opt =>
