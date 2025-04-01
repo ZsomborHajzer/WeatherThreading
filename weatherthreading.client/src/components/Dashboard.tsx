@@ -12,6 +12,13 @@ const data = [
 
 const Dashboard: React.FC = () => {
   const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+
+  const handleSearch = () => {
+    console.log("Searching for:", search, "From:", fromDate, "To:", toDate);
+  };
 
   return (
 <div className="dashboard-container">
@@ -34,11 +41,19 @@ const Dashboard: React.FC = () => {
     <div className="date-selectors">
       <div className="date-selector">
         <span>From: </span>
-        <input type="date" className="date-input" />
+        <input type="date" className="date-input" 
+         min="1950-01-01"
+         max={new Date().toISOString().split("T")[0]}
+          value={fromDate}
+          onChange={(e) => setFromDate(e.target.value)}/>
       </div>
       <div className="date-selector">
         <span>To: </span>
-        <input type="date" className="date-input" />
+        <input type="date" className="date-input" 
+         min="1950-01-01"
+         max={new Date().toISOString().split("T")[0]}
+         value={toDate}
+         onChange={(e) => setToDate(e.target.value)}/>
       </div>
     </div>
   </div>
@@ -55,6 +70,8 @@ const Dashboard: React.FC = () => {
       <option value="windSpeed">Wind Speed (10m)</option>
     </select>
   </div>
+
+  <button onClick={handleSearch} className="search-button" style={{ border: "2px solid black", padding: "5px 10px", borderRadius: "5px" }}>Search</button>
 
   <div className="dashboard-card">
     <ResponsiveContainer width="100%" height={300}>
