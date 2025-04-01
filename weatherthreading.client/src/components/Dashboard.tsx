@@ -1,39 +1,61 @@
-import React, { useState } from "react";
 import { LineChart, XAxis, Line, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
+import React, { useState, useEffect } from "react";
 import "../index.css";
 
-const data = [
-  { name: "Jan", value: 30 },
-  { name: "Feb", value: 50 },
-  { name: "Mar", value: 40 },
-  { name: "Apr", value: 70 },
-  { name: "May", value: 60 },
+const cities = [
+  "Budapest, Hungary", "Bangkok, Thailand", "Zurich, Switzerland", "Los Angeles, USA", "Halifax, Canada", 
+  "Rome, Italy", "London, UK", "Riga, Latvia", "Barcelona, Spain", "Shanghai, China", 
+  "Tokyo, Japan", "Paris, France", "Stockholm, Sweden", "Munich, Germany", "Riyadh, Saudi Arabia"
+];
+
+const yAxisOptions = [
+  { label: "Temperature", value: "temperature" },
+  { label: "Relative Humidity", value: "relative_humidity" },
+  { label: "Precipitation Sum", value: "precipitation_sum" },
+  { label: "Precipitation Hours", value: "precipitation_hours" },
+  { label: "Wind Speed", value: "wind_speed" },
+  { label: "Shortwave Radiation Sum", value: "shortwave_radiation_sum" }
 ];
 
 const Dashboard: React.FC = () => {
-  const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [selectedYAxis, setSelectedYAxis] = useState("temperature");
+  const [chartData, setChartData] = useState([]);
 
+  useEffect(() => {
+    if (selectedCity && fromDate && toDate) {
+      fetchChartData();
+    }
+  }, [selectedCity, fromDate, toDate, selectedYAxis]);
 
-  const handleSearch = () => {
-    console.log("Searching for:", search, "From:", fromDate, "To:", toDate);
+  const fetchChartData = async () => {
+    try {
+      const response = await fetch(`/api/data?city=${selectedCity}&from=${fromDate}&to=${toDate}&yAxis=${selectedYAxis}`);
+      const data = await response.json();
+      setChartData(data);
+    } catch (error) {
+      console.error("Error fetching chart data:", error);
+    }
   };
 
   return (
 <div className="dashboard-container">
   <h1 className="dashboard-title">Dashboard</h1>
-  
+
   <div className="input-row">
     <label htmlFor="location-search" className="input-label">Location</label>
-    <input
-      id="location-search"
-      type="text"
-      placeholder="Search..."
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-      className="dashboard-search"
-    />
+    <select
+          value={selectedCity}
+          onChange={(e) => setSelectedCity(e.target.value)}
+          className="city-dropdown"
+        >
+          <option value="">Select a city</option>
+          {cities.map((city, index) => (
+            <option key={index} value={city}>{city}</option>
+          ))}
+        </select>
   </div>
 
   <div className="input-row">
@@ -60,22 +82,26 @@ const Dashboard: React.FC = () => {
 
   <div className="input-row">
     <label className="input-label">Y Axis</label>
-    <select className="y-axis-dropdown">
-      <option value="temperature">Temperature (2m)</option>
-      <option value="precipitation">Precipitation</option>
-      <option value="rain">Rain</option>
-      <option value="snowfall">Snowfall</option>
-      <option value="snowDepth">Snow Depth</option>
-      <option value="relativeHumidity">Relative Humidity (2m)</option>
-      <option value="windSpeed">Wind Speed (10m)</option>
-    </select>
+    <select
+          id="y-axis-dropdown"
+          value={selectedYAxis}
+          onChange={(e) => setSelectedYAxis(e.target.value)}
+          className="y-axis-dropdown"
+        >
+          {yAxisOptions.map((option, index) => (
+            <option key={index} value={option.value}>{option.label}</option>
+          ))}
+        </select>
   </div>
 
-  <button onClick={handleSearch} className="search-button" style={{ border: "2px solid black", padding: "5px 10px", borderRadius: "5px" }}>Search</button>
+  <div className="search-button-container">
+    <button onClick={fetchChartData} className="search-button" style={{ border: "2px solid black", padding: "5px 10px", borderRadius: "5px" }}>Search</button>
+    </div>
+
 
   <div className="dashboard-card">
     <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={data}>
+      <LineChart data={chartData}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="name" />
         <Tooltip />
@@ -84,9 +110,6 @@ const Dashboard: React.FC = () => {
     </ResponsiveContainer>
   </div>
 </div>
-
-
-
 
   );
 };
