@@ -60,4 +60,16 @@ public class DailyData
 
     [JsonPropertyName("relative_humidity_2m")]
     public List<double> RelativeHumidity2m { get; set; } = new();
+
+    [JsonPropertyName("precipitation_sum")]
+    public List<double> PrecipitationSum{ get; set; } = new();
+
+    [JsonPropertyName("precipitation_hours")]
+    public List<double> PrecipitationHours{ get; set; } = new();
+
+    [JsonPropertyName("wind_speed_10m_max")]
+    public List<double> WindSpeed{ get; set; } = new();
+
+    [JsonPropertyName("shortwave_radiation_sum")]
+    public List<double> ShortWaveRadiationSum{ get; set; } = new();
 } 

@@ -1,5 +1,9 @@
 using System.Text.Json;
 using WeatherThreading.Models;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace WeatherThreading.Services;
 
@@ -9,22 +13,18 @@ public class WeatherService : IWeatherService
     private const string BaseUrl = "https://archive-api.open-meteo.com/v1/archive";
     private readonly ILogger<WeatherService> _logger;
 
-    // Map frontend parameter names to API parameter names
-    private static readonly Dictionary<string, string> ParameterMapping = new()
-    {
-        { "temperature_2m_max", "temperature_2m_max" },
-        { "temperature_2m_min", "temperature_2m_min" },
-        { "relative_humidity_2m", "relative_humidity_2m_mean" }
-    };
-
     public WeatherService(HttpClient httpClient, ILogger<WeatherService> logger)
     {
         _httpClient = httpClient;
         _logger = logger;
     }
 
-    public async Task<WeatherData> GetHistoricalWeatherDataAsync(double latitude, double longitude, DateTime startDate, DateTime endDate)
+    public async Task<WeatherData> GetHistoricalWeatherDataAsync(string location, DateTime startDate, DateTime endDate)
     {
+
+        var coords = Dictionaries.CityMapping[location];
+        double latitude = coords.Item1;
+        double longitude = coords.Item2;
         var url = $"{BaseUrl}?latitude={latitude}&longitude={longitude}&start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}&daily=temperature_2m_max";
         
         var response = await _httpClient.GetAsync(url);
@@ -45,18 +45,23 @@ public class WeatherService : IWeatherService
         {
             // Map the parameters to their API equivalents
             var apiParameters = request.Parameters
-                .Select(p => ParameterMapping.GetValueOrDefault(p, p))
+                .Select(p => Dictionaries.ParameterMapping.GetValueOrDefault(p, p))
                 .ToList();
 
             // Split the time range into smaller chunks
             var timeChunks = TimeRangeSplitter.SplitTimeRange(request.StartDate, request.EndDate);
+
+            // Get latitude and longitude from request
+            var coords = Dictionaries.CityMapping[request.Location];
+            double latitude = coords.Item1;
+            double longitude = coords.Item2;
             
             // Create tasks for each time chunk
             //! Maybe semaphore here to limit the number of concurrent requests
             var tasks = timeChunks.Select(chunk => 
                 FetchWeatherDataForTimeRange(
-                    request.Latitude,
-                    request.Longitude,
+                    latitude,
+                    longitude,
                     chunk.Start,
                     chunk.End,
                     apiParameters
@@ -159,23 +164,62 @@ public class WeatherService : IWeatherService
                 }
                 mergedResponse.Daily["relative_humidity_2m"].AddRange(result.Daily.RelativeHumidity2m.Select(h => (object)h));
             }
+
+            // Merge precipitation data
+            if (result.Daily.PrecipitationSum.Any())
+            {
+                if (!mergedResponse.Daily.ContainsKey("precipitation_sum"))
+                {
+                    mergedResponse.Daily["precipitation_sum"] = new List<object>();
+                }
+                mergedResponse.Daily["precipitation_sum"].AddRange(result.Daily.PrecipitationSum.Select(p => (object)p));
+            }
+
+            if (result.Daily.PrecipitationHours.Any())
+            {
+                if (!mergedResponse.Daily.ContainsKey("precipitation_hours"))
+                {
+                    mergedResponse.Daily["precipitation_hours"] = new List<object>();
+                }
+                mergedResponse.Daily["precipitation_hours"].AddRange(result.Daily.PrecipitationHours.Select(p => (object)p));
+            }
+
+            // Merge wind speed data
+            if (result.Daily.WindSpeed.Any())
+            {
+                if (!mergedResponse.Daily.ContainsKey("wind_speed_10m_max"))
+                {
+                    mergedResponse.Daily["wind_speed_10m_max"] = new List<object>();
+                }
+                mergedResponse.Daily["wind_speed_10m_max"].AddRange(result.Daily.WindSpeed.Select(w => (object)w));
+            }
+
+            // Merge radiation data
+            if (result.Daily.ShortWaveRadiationSum.Any())
+            {
+                if (!mergedResponse.Daily.ContainsKey("shortwave_radiation_sum"))
+                {
+                    mergedResponse.Daily["shortwave_radiation_sum"] = new List<object>();
+                }
+                mergedResponse.Daily["shortwave_radiation_sum"].AddRange(result.Daily.ShortWaveRadiationSum.Select(s => (object)s));
+            }
         }
 
         return mergedResponse;
     }
 
-    private async Task SaveWeatherDataToDatabase(WeatherDataResponse weatherData)
-    {
-        //! We could save the data to the database here
-    }
+//     private async Task SaveWeatherDataToDatabase(WeatherDataResponse weatherData)
+//     {
+//         //! We could save the data to the database here
+//     }
 
-    private async Task<WeatherDataResponse> GetWeatherDataFromDatabase(WeatherDataRequest request)
-    {
-        //! We could get the data from the database here
-    }
+//     private async Task<WeatherDataResponse> GetWeatherDataFromDatabase(WeatherDataRequest request)
+//     {
+//         //! We could get the data from the database here
+//     }
 
-    private async Task<WeatherDataResponse> FormatWeatherData(WeatherDataResponse weatherData)
-    {
-        //! We could format the data here
-    }
+//     private async Task<WeatherDataResponse> FormatWeatherData(WeatherDataResponse weatherData)
+//     {
+//         //! We could format the data here
+//     }
 } 

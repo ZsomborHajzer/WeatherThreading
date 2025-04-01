@@ -17,15 +17,14 @@ public class WeatherController : ControllerBase
 
     [HttpGet("historical")]
     public async Task<IActionResult> GetHistoricalWeather(
-        [FromQuery] double latitude,
-        [FromQuery] double longitude,
+        [FromQuery] string location,
         [FromQuery] DateTime startDate,
         [FromQuery] DateTime endDate)
     {
         try
         {
             var weatherData = await _weatherService.GetHistoricalWeatherDataAsync(
-                latitude, longitude, startDate, endDate);
+                location, startDate, endDate);
             return Ok(weatherData);
         }
         catch (Exception ex)
