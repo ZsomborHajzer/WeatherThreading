@@ -16,10 +16,10 @@ public class WeatherService : IWeatherService
     private static readonly Dictionary<string, string> ParameterMapping = new()
     {
         { "temperature", "temperature_2m_max,temperature_2m_min" },
-        { "relative_humidity_2m", "relative_humidity_2m_mean" },
+        { "relative_humidity", "relative_humidity_2m_mean" },
         { "precipitation_sum", "precipitation_sum" },
         { "precipitation_hours", "precipitation_hours" },
-        { "wind_speed_10m_max", "wind_speed_10m_max" },
+        { "wind_speed", "wind_speed_10m_max" },
         { "shortwave_radiation_sum", "shortwave_radiation_sum" }
     };
 
