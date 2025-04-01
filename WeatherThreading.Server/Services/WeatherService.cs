@@ -13,24 +13,18 @@ public class WeatherService : IWeatherService
     private const string BaseUrl = "https://archive-api.open-meteo.com/v1/archive";
     private readonly ILogger<WeatherService> _logger;
 
-    private static readonly Dictionary<string, string> ParameterMapping = new()
-    {
-        { "temperature", "temperature_2m_max,temperature_2m_min" },
-        { "relative_humidity_2m", "relative_humidity_2m_mean" },
-        { "precipitation_sum", "precipitation_sum" },
-        { "precipitation_hours", "precipitation_hours" },
-        { "wind_speed_10m_max", "wind_speed_10m_max" },
-        { "shortwave_radiation_sum", "shortwave_radiation_sum" }
-    };
-
     public WeatherService(HttpClient httpClient, ILogger<WeatherService> logger)
     {
         _httpClient = httpClient;
         _logger = logger;
     }
 
-    public async Task<WeatherData> GetHistoricalWeatherDataAsync(double latitude, double longitude, DateTime startDate, DateTime endDate)
+    public async Task<WeatherData> GetHistoricalWeatherDataAsync(string location, DateTime startDate, DateTime endDate)
     {
+
+        var coords = Dictionaries.CityMapping[location];
+        double latitude = coords.Item1;
+        double longitude = coords.Item2;
         var url = $"{BaseUrl}?latitude={latitude}&longitude={longitude}&start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}&daily=temperature_2m_max";
         
         var response = await _httpClient.GetAsync(url);
@@ -51,18 +45,23 @@ public class WeatherService : IWeatherService
         {
             // Map the parameters to their API equivalents
             var apiParameters = request.Parameters
-                .Select(p => ParameterMapping.GetValueOrDefault(p, p))
+                .Select(p => Dictionaries.ParameterMapping.GetValueOrDefault(p, p))
                 .ToList();
 
             // Split the time range into smaller chunks
             var timeChunks = TimeRangeSplitter.SplitTimeRange(request.StartDate, request.EndDate);
+
+            // Get latitude and longitude from request
+            var coords = Dictionaries.CityMapping[request.Location];
+            double latitude = coords.Item1;
+            double longitude = coords.Item2;
             
             // Create tasks for each time chunk
             //! Maybe semaphore here to limit the number of concurrent requests
             var tasks = timeChunks.Select(chunk => 
                 FetchWeatherDataForTimeRange(
-                    request.Latitude,
-                    request.Longitude,
+                    latitude,
+                    longitude,
                     chunk.Start,
                     chunk.End,
                     apiParameters
@@ -166,6 +165,7 @@ public class WeatherService : IWeatherService
                 mergedResponse.Daily["relative_humidity_2m"].AddRange(result.Daily.RelativeHumidity2m.Select(h => (object)h));
             }
 
+            // Merge precipitation data
             if (result.Daily.PrecipitationSum.Any())
             {
                 if (!mergedResponse.Daily.ContainsKey("precipitation_sum"))
@@ -184,6 +184,7 @@ public class WeatherService : IWeatherService
                 mergedResponse.Daily["precipitation_hours"].AddRange(result.Daily.PrecipitationHours.Select(p => (object)p));
             }
 
+            // Merge wind speed data
             if (result.Daily.WindSpeed.Any())
             {
                 if (!mergedResponse.Daily.ContainsKey("wind_speed_10m_max"))
@@ -193,6 +194,7 @@ public class WeatherService : IWeatherService
                 mergedResponse.Daily["wind_speed_10m_max"].AddRange(result.Daily.WindSpeed.Select(w => (object)w));
             }
 
+            // Merge radiation data
             if (result.Daily.ShortWaveRadiationSum.Any())
             {
                 if (!mergedResponse.Daily.ContainsKey("shortwave_radiation_sum"))

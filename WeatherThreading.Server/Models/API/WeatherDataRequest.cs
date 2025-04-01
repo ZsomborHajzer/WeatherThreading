@@ -4,11 +4,8 @@ namespace WeatherThreading.Models;
 
 public class WeatherDataRequest
 {
-    [JsonPropertyName("latitude")]
-    public double Latitude { get; set; }
-
-    [JsonPropertyName("longitude")]
-    public double Longitude { get; set; }
+    [JsonPropertyName("location")]
+    public required string Location { get; set; }
 
     [JsonPropertyName("startDate")]
     public DateTime StartDate { get; set; }
