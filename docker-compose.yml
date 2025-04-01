@@ -3,11 +3,12 @@ services:
     build: .
     container_name: weather_app
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Server=mysql;Database=weather_db;User=root;Password=changeme;
+      - ConnectionStrings__DefaultConnection=Server=mysql;Database=weather_db;User=root;Password=changeme;Port=3306;
     ports:
       - "8080:8080"
       - "52971:52971"
@@ -20,10 +21,15 @@ services:
       MYSQL_ROOT_PASSWORD: changeme
       MYSQL_DATABASE: weather_db
     ports:
-      - "3309:3309"
+      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./WeatherThreading.Server/WeatherData.sql:/docker-entrypoint-initdb.d/WeatherData.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   mysql_data:
