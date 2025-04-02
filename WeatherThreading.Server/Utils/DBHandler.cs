@@ -34,13 +34,16 @@ public class DBHandler
     public async Task AddTemperatureBulk(WeatherDataResponse weatherData, List<string> timeList, Location location)
     {
         var temperatures = new List<Temperature>();
-
         var temperatureMaxList = weatherData.Daily["temperature_2m_max"].Cast<double>().ToList();
         var temperatureMinList = weatherData.Daily["temperature_2m_min"].Cast<double>().ToList();
 
+        var existingDates = await _context.Temperature
+            .Where(t => t.LocationId == location.Id)
+            .Select(t => t.Date.Date)
+            .ToListAsync();
+
         var temperatureAverages = new double[temperatureMaxList.Count];
 
-        //! PLINQ to calculate the average temperature
         Parallel.For(0, temperatureMaxList.Count, i =>
         {
             temperatureAverages[i] = (temperatureMaxList[i] + temperatureMinList[i]) / 2;
@@ -48,19 +51,27 @@ public class DBHandler
 
         for (int i = 0; i < temperatureMaxList.Count; i++)
         {
+            var date = DateTime.Parse(timeList[i]).Date;
+            
+            if (existingDates.Contains(date))
+                continue;
+
             var temperature = new Temperature
             {
                 LocationId = location.Id,
                 TemperatureMax = temperatureMaxList[i],
                 TemperatureMin = temperatureMinList[i],
-                TemperatureAverage = (temperatureMaxList[i] + (weatherData.Daily.ContainsKey("temperature_2m_min") ? weatherData.Daily["temperature_2m_min"].Cast<double>().ToList()[i] : 0)) / 2,
-                Date = DateTime.Parse(timeList[i])
+                TemperatureAverage = temperatureAverages[i],
+                Date = date
             };
             temperatures.Add(temperature);
         }
 
-        _context.Temperature.AddRange(temperatures);
-        await _context.SaveChangesAsync();
+        if (temperatures.Any())
+        {
+            _context.Temperature.AddRange(temperatures);
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task AddPrecipitationHoursBulk(WeatherDataResponse weatherData, List<string> timeList, Location location)
@@ -68,36 +79,65 @@ public class DBHandler
         var precipitationHours = new List<PrecipitationHours>();
         var precipitationHoursList = weatherData.Daily["precipitation_hours"].Cast<double>().ToList();
 
+        var existingDates = await _context.PrecipitationHours
+            .Where(p => p.LocationId == location.Id)
+            .Select(p => p.Date.Date)
+            .ToListAsync();
+
         for (int i = 0; i < precipitationHoursList.Count; i++)
         {
+            var date = DateTime.Parse(timeList[i]).Date;
+
+            if (existingDates.Contains(date))
+                continue;
+
             var precipitationHour = new PrecipitationHours
             {
                 LocationId = location.Id,
                 PrecipitationHoursValue = precipitationHoursList[i],
-                Date = DateTime.Parse(timeList[i])
+                Date = date
             };
             precipitationHours.Add(precipitationHour);
         }
-        _context.PrecipitationHours.AddRange(precipitationHours);
-        await _context.SaveChangesAsync();
+
+        if (precipitationHours.Any())
+        {
+            _context.PrecipitationHours.AddRange(precipitationHours);
+            await _context.SaveChangesAsync();
+        }
     }
 
-        public async Task AddPrecipitationSumBulk(WeatherDataResponse weatherData, List<string> timeList, Location location)
+    public async Task AddPrecipitationSumBulk(WeatherDataResponse weatherData, List<string> timeList, Location location)
     {
         var precipitationSums = new List<Precipitation>();
         var precipitationSumList = weatherData.Daily["precipitation_sum"].Cast<double>().ToList();
+
+        var existingDates = await _context.Precipitation
+            .Where(p => p.LocationId == location.Id)
+            .Select(p => p.Date.Date)
+            .ToListAsync();
+
         for (int i = 0; i < precipitationSumList.Count; i++)
         {
+            var date = DateTime.Parse(timeList[i]).Date;
+
+            if (existingDates.Contains(date))
+                continue;
+
             var precipitation = new Precipitation
             {
                 LocationId = location.Id,
                 PrecipitationSum = precipitationSumList[i],
-                Date = DateTime.Parse(timeList[i])
+                Date = date
             };
             precipitationSums.Add(precipitation);
         }
-        _context.Precipitation.AddRange(precipitationSums);
-        await _context.SaveChangesAsync();
+
+        if (precipitationSums.Any())
+        {
+            _context.Precipitation.AddRange(precipitationSums);
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task AddRadiationBulk(WeatherDataResponse weatherData, List<string> timeList, Location location)
@@ -105,38 +145,64 @@ public class DBHandler
         var radiations = new List<Radiation>();
         var shortWaveRadiationSumList = weatherData.Daily["shortwave_radiation_sum"].Cast<double>().ToList();
 
+        var existingDates = await _context.Radiation
+            .Where(r => r.LocationId == location.Id)
+            .Select(r => r.Date.Date)
+            .ToListAsync();
+
         for (int i = 0; i < shortWaveRadiationSumList.Count; i++)
         {
+            var date = DateTime.Parse(timeList[i]).Date;
+
+            if (existingDates.Contains(date))
+                continue;
+
             var radiation = new Radiation
             {
                 LocationId = location.Id,
                 ShortWaveRadiationSum = shortWaveRadiationSumList[i],
-                Date = DateTime.Parse(timeList[i])
+                Date = date
             };
             radiations.Add(radiation);
         }
 
-        _context.Radiation.AddRange(radiations);
-        await _context.SaveChangesAsync();
+        if (radiations.Any())
+        {
+            _context.Radiation.AddRange(radiations);
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task AddWindBulk(WeatherDataResponse weatherData, List<string> timeList, Location location)
     {
         var winds = new List<Wind>();
-
         var windSpeedList = weatherData.Daily["wind_speed_10m_max"].Cast<double>().ToList();
+
+        var existingDates = await _context.Wind
+            .Where(w => w.LocationId == location.Id)
+            .Select(w => w.Date.Date)
+            .ToListAsync();
 
         for (int i = 0; i < windSpeedList.Count; i++)
         {
+            var date = DateTime.Parse(timeList[i]).Date;
+
+            if (existingDates.Contains(date))
+                continue;
+
             var wind = new Wind
             {
                 LocationId = location.Id,
                 WindSpeedMax = windSpeedList[i],
-                Date = DateTime.Parse(timeList[i])
+                Date = date
             };
             winds.Add(wind);
         }
-        _context.Wind.AddRange(winds);
-        await _context.SaveChangesAsync();
+
+        if (winds.Any())
+        {
+            _context.Wind.AddRange(winds);
+            await _context.SaveChangesAsync();
+        }
     }
 }
