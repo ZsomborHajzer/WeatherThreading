@@ -72,14 +72,13 @@ public class WeatherService : IWeatherService
 
             var mergedData = MergeWeatherDataResults(results);
 
-
             await SaveWeatherDataToDB(mergedData, request);
 
-            return mergedData;
+            return mergedData;  
 
-            // SaveLocationDateTime
-
-            // await SaveWeatherDataToDatabase(mergedData)             
+            // getDataFromDB
+            // formateResponsefunc
+           // return formatedResponse;        
 
 
         }
@@ -276,41 +275,32 @@ public class WeatherService : IWeatherService
         }
     }
 
-    // private async Task<WeatherDataResponse> GetWeatherDataFromDB(WeatherDataRequest request)
-    // {
-    //     // Retrieve the weather data from the database
-    //     // This is a placeholder for the actual database retrieval logic
-    //     // You would typically use Entity Framework or another ORM to retrieve the data
+    private async Task<WeatherDataResponse> GetWeatherDataFromDB(WeatherDataRequest request)
+    {
+        //! THIS COULD BE DONE WITH LINQ
+        // Retrieve the weather data from the database
+        // This is a placeholder for the actual database retrieval logic
+        // You would typically use Entity Framework or another ORM to retrieve the data
 
-    //     // Example:
-    //     // return await _dbContext.WeatherData
-    //     //     .Where(w => w.Location == request.Location && w.StartDate >= request.StartDate && w.EndDate <= request.EndDate)
-    //     //     .ToListAsync();
+        // Example:
+        // return await _dbContext.WeatherData
+        //     .Where(w => w.Location == request.Location && w.StartDate >= request.StartDate && w.EndDate <= request.EndDate)
+        //     .ToListAsync();
 
-    //     return null;
-    // }
+        return null;
+    }
 
-    // private async Task<WeatherDataResponse> CalculateTemeratureAverage(WeatherDataResponse weatherData)
-    // {
-    //     // Calculate the average temperature from the weather data
-    //     // This is a placeholder for the actual calculation logic
+    private async Task<WeatherDataResponse> FormatWeatherDataForFrontend(WeatherDataResponse weatherData)
+    {
+        // Format the weather data for the frontend
+        // This is a placeholder for the actual formatting logic
 
-    //     // Example:
-    //     // var averageTemperature = weatherData.Daily.Temperature2mMax.Average();
-    //     // weatherData.AverageTemperature = averageTemperature;
+        // Example:
+        // weatherData.FormattedData = weatherData.Daily.Temperature2mMax.Select(t => $"{t} °C").ToList();
 
-    //     return weatherData;
-    // }
+        return weatherData;
+    }
 
-    // private async Task<WeatherDataResponse> FormatWeatherDataForFrontend(WeatherDataResponse weatherData)
-    // {
-    //     // Format the weather data for the frontend
-    //     // This is a placeholder for the actual formatting logic
-
-    //     // Example:
-    //     // weatherData.FormattedData = weatherData.Daily.Temperature2mMax.Select(t => $"{t} °C").ToList();
-
-    //     return weatherData;
-    // }
-
+    //Temperature
+    1950-1964, 1985-1990, 2000-2005, 2010-2015
 }
