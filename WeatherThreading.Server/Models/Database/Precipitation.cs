@@ -13,4 +13,5 @@ public class Precipitation
     public long LocationId {get; set;}
 
     public required double PrecipitationSum {get; set;}
+    public required DateTime Date {get; set;}
 }

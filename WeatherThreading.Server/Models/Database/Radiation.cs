@@ -13,4 +13,6 @@ public class Radiation
     public long LocationId {get; set;}
 
     public required double ShortWaveRadiationSum {get; set;}
+
+    public required DateTime Date {get; set;}
 }
