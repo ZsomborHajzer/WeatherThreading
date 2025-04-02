@@ -12,11 +12,15 @@ public class WeatherService : IWeatherService
     private readonly HttpClient _httpClient;
     private const string BaseUrl = "https://archive-api.open-meteo.com/v1/archive";
     private readonly ILogger<WeatherService> _logger;
+    private readonly WeatherContext _context;
+    private readonly DBHandler _dbHandler;
 
-    public WeatherService(HttpClient httpClient, ILogger<WeatherService> logger)
+    public WeatherService(HttpClient httpClient, ILogger<WeatherService> logger, WeatherContext context, DBHandler dbHandler)
     {
         _httpClient = httpClient;
         _logger = logger;
+        _context = context;
+        _dbHandler = dbHandler;
     }
 
     public async Task<WeatherData> GetHistoricalWeatherDataAsync(string location, DateTime startDate, DateTime endDate)
@@ -26,10 +30,10 @@ public class WeatherService : IWeatherService
         double latitude = coords.Item1;
         double longitude = coords.Item2;
         var url = $"{BaseUrl}?latitude={latitude}&longitude={longitude}&start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}&daily=temperature_2m_max";
-        
+
         var response = await _httpClient.GetAsync(url);
         response.EnsureSuccessStatusCode();
-        
+
         var content = await response.Content.ReadAsStringAsync();
         var weatherData = JsonSerializer.Deserialize<WeatherData>(content, new JsonSerializerOptions
         {
@@ -43,22 +47,18 @@ public class WeatherService : IWeatherService
     {
         try
         {
-            // Map the parameters to their API equivalents
             var apiParameters = request.Parameters
                 .Select(p => Dictionaries.ParameterMapping.GetValueOrDefault(p, p))
                 .ToList();
 
-            // Split the time range into smaller chunks
             var timeChunks = TimeRangeSplitter.SplitTimeRange(request.StartDate, request.EndDate);
 
-            // Get latitude and longitude from request
             var coords = Dictionaries.CityMapping[request.Location];
             double latitude = coords.Item1;
             double longitude = coords.Item2;
-            
-            // Create tasks for each time chunk
+
             //! Maybe semaphore here to limit the number of concurrent requests
-            var tasks = timeChunks.Select(chunk => 
+            var tasks = timeChunks.Select(chunk =>
                 FetchWeatherDataForTimeRange(
                     latitude,
                     longitude,
@@ -68,11 +68,20 @@ public class WeatherService : IWeatherService
                 )
             );
 
-            // Execute all tasks in parallel
             var results = await Task.WhenAll(tasks);
 
-            // Merge the results
-            return MergeWeatherDataResults(results);
+            var mergedData = MergeWeatherDataResults(results);
+
+
+            await SaveWeatherDataToDB(mergedData, request);
+
+            return mergedData;
+
+            // SaveLocationDateTime
+
+            // await SaveWeatherDataToDatabase(mergedData)             
+
+
         }
         catch (Exception ex)
         {
@@ -90,19 +99,19 @@ public class WeatherService : IWeatherService
     {
         var parametersString = string.Join(",", parameters);
         var url = $"{BaseUrl}?latitude={latitude}&longitude={longitude}&start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}&daily={parametersString}";
-        
-        _logger.LogInformation("Fetching weather data for range: {StartDate} to {EndDate} with parameters: {Parameters}", 
+
+        _logger.LogInformation("Fetching weather data for range: {StartDate} to {EndDate} with parameters: {Parameters}",
             startDate, endDate, parametersString);
-        
+
         var response = await _httpClient.GetAsync(url);
         if (!response.IsSuccessStatusCode)
         {
             var errorContent = await response.Content.ReadAsStringAsync();
-            _logger.LogError("API request failed with status {StatusCode}: {ErrorContent}", 
+            _logger.LogError("API request failed with status {StatusCode}: {ErrorContent}",
                 response.StatusCode, errorContent);
             throw new Exception($"API request failed: {errorContent}");
         }
-        
+
         var content = await response.Content.ReadAsStringAsync();
         var weatherData = JsonSerializer.Deserialize<WeatherData>(content, new JsonSerializerOptions
         {
@@ -126,10 +135,8 @@ public class WeatherService : IWeatherService
         };
 
         //! We could also add threading here to speed up the merging process (think read/write lock or plinq)
-        // Merge all results
         foreach (var result in results)
         {
-            // Merge time data
             if (!mergedResponse.Daily.ContainsKey("time"))
             {
                 mergedResponse.Daily["time"] = new List<object>();
@@ -208,18 +215,102 @@ public class WeatherService : IWeatherService
         return mergedResponse;
     }
 
-//     private async Task SaveWeatherDataToDatabase(WeatherDataResponse weatherData)
-//     {
-//         //! We could save the data to the database here
-//     }
+    // private async Task<WeatherDataResponse> FindMissingDataFromDB(WeatherDataRequest request)
+    // {
+    //     // Check if the data is already in the database
+    //     // If not, fetch it from the API
+    //     // This is a placeholder for the actual database check logic
 
-//     private async Task<WeatherDataResponse> GetWeatherDataFromDatabase(WeatherDataRequest request)
-//     {
-//         //! We could get the data from the database here
-//     }
+    //     return null;
+    // }
 
-//     private async Task<WeatherDataResponse> FormatWeatherData(WeatherDataResponse weatherData)
-//     {
-//         //! We could format the data here
-//     }
-} 
+    private async Task<WeatherDataResponse> SaveWeatherDataToDB(WeatherDataResponse weatherData, WeatherDataRequest request)
+    {
+        var coords = Dictionaries.CityMapping[request.Location];
+        var location = await _dbHandler.GetOrCreateLocationAsync(request.Location, coords.Item1, coords.Item2);
+
+        var DBHandler = new DBHandler(_context);
+
+        try
+        {
+
+            if (weatherData.Daily != null)
+            {
+                if (weatherData.Daily.ContainsKey("time"))
+                {
+                    var timeList = weatherData.Daily["time"].Cast<string>().ToList();
+
+                    if (weatherData.Daily.ContainsKey("temperature_2m_max"))
+                    {
+                        await DBHandler.AddTemperatureBulk(weatherData, timeList, location);
+                    }
+
+                    if (weatherData.Daily.ContainsKey("precipitation_sum"))
+                    {
+                        await DBHandler.AddPrecipitationSumBulk(weatherData, timeList, location);
+                    }
+
+                    if (weatherData.Daily.ContainsKey("wind_speed_10m_max"))
+                    {
+                        await DBHandler.AddWindBulk(weatherData, timeList, location);
+                    }
+
+                    if (weatherData.Daily.ContainsKey("shortwave_radiation_sum"))
+                    {
+                        await DBHandler.AddRadiationBulk(weatherData, timeList, location);
+                    }
+
+                    if (weatherData.Daily.ContainsKey("precipitation_hours"))
+                    {
+                        await DBHandler.AddPrecipitationHoursBulk(weatherData, timeList, location);
+                    }
+                }
+            }
+
+            return weatherData;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving weather data to database");
+            throw;
+        }
+    }
+
+    // private async Task<WeatherDataResponse> GetWeatherDataFromDB(WeatherDataRequest request)
+    // {
+    //     // Retrieve the weather data from the database
+    //     // This is a placeholder for the actual database retrieval logic
+    //     // You would typically use Entity Framework or another ORM to retrieve the data
+
+    //     // Example:
+    //     // return await _dbContext.WeatherData
+    //     //     .Where(w => w.Location == request.Location && w.StartDate >= request.StartDate && w.EndDate <= request.EndDate)
+    //     //     .ToListAsync();
+
+    //     return null;
+    // }
+
+    // private async Task<WeatherDataResponse> CalculateTemeratureAverage(WeatherDataResponse weatherData)
+    // {
+    //     // Calculate the average temperature from the weather data
+    //     // This is a placeholder for the actual calculation logic
+
+    //     // Example:
+    //     // var averageTemperature = weatherData.Daily.Temperature2mMax.Average();
+    //     // weatherData.AverageTemperature = averageTemperature;
+
+    //     return weatherData;
+    // }
+
+    // private async Task<WeatherDataResponse> FormatWeatherDataForFrontend(WeatherDataResponse weatherData)
+    // {
+    //     // Format the weather data for the frontend
+    //     // This is a placeholder for the actual formatting logic
+
+    //     // Example:
+    //     // weatherData.FormattedData = weatherData.Daily.Temperature2mMax.Select(t => $"{t} °C").ToList();
+
+    //     return weatherData;
+    // }
+
+}

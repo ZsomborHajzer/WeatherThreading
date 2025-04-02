@@ -12,6 +12,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IWeatherService, WeatherService>();
+builder.Services.AddScoped<DBHandler>(); 
 
 builder.Services.AddDbContext<WeatherContext>(options =>
     options.UseMySql(

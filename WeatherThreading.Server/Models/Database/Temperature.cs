@@ -17,4 +17,6 @@ public class Temperature
     public required double TemperatureMax {get; set;}
 
     public required double TemperatureAverage {get; set;}
+
+    public required DateTime Date {get; set;}
 }

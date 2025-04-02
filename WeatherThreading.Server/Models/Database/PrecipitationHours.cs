@@ -13,4 +13,6 @@ public class PrecipitationHours
     public long LocationId {get; set;}
 
     public required double PrecipitationHoursValue {get; set;}
+
+    public required DateTime Date {get; set;}
 }

@@ -13,4 +13,6 @@ public class Wind
     public long LocationId {get; set;}
 
     public required double WindSpeedMax {get; set;}
+
+    public required DateTime Date {get; set;}
 }
