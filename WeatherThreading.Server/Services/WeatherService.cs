@@ -309,7 +309,4 @@ public class WeatherService : IWeatherService
 
         return weatherData;
     }
-
-    // Temperature
-    // 1950-1964, 1985-1990, 2000-2005, 2010-2015
 }
