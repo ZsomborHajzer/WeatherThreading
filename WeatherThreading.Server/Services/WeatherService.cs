@@ -20,7 +20,7 @@ public class WeatherService : IWeatherService
         _logger = logger;
         _context = context;
         _dbHandler = dbHandler;
-        _semaphore = new SemaphoreSlim(Environment.ProcessorCount -1 > 0 ? Environment.ProcessorCount - 1 : 1, Environment.ProcessorCount -1 > 0 ? Environment.ProcessorCount - 1 : 1); 
+        _semaphore = new SemaphoreSlim(Environment.ProcessorCount -1 > 0 ? Environment.ProcessorCount - 1 : 1); 
     }
 
     public async Task<WeatherData> GetHistoricalWeatherDataAsync(string location, DateTime startDate, DateTime endDate)
