@@ -1,8 +1,8 @@
 namespace WeatherThreading.Services;
 
-public class Dictionaries {
+public class ParameterMappings {
 
-    public static readonly Dictionary<string, string> ParameterMapping = new()
+    public static readonly Dictionary<string, string> RequestDataMapping = new()
     {
         { "temperature", "temperature_2m_max,temperature_2m_min" },
         { "relative_humidity_2m", "relative_humidity_2m_mean" },
@@ -10,6 +10,16 @@ public class Dictionaries {
         { "precipitation_hours", "precipitation_hours" },
         { "wind_speed_10m_max", "wind_speed_10m_max" },
         { "shortwave_radiation_sum", "shortwave_radiation_sum" }
+    };
+
+    public static readonly Dictionary<string, string> TableNameMapping = new()
+    {
+        { "temperature", "Temperature" },
+        { "relative_humidity_2m", "relative_humidity_2m_mean" },
+        { "precipitation_sum", "Precipitation" },
+        { "precipitation_hours", "PrecipitationHours" },
+        { "wind_speed_10m_max", "Wind" },
+        { "shortwave_radiation_sum", "Radiation" }
     };
 
     public static readonly Dictionary<string, (double, double)> CityMapping = new()

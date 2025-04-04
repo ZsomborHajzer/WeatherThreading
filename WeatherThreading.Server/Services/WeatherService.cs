@@ -4,6 +4,8 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 
 namespace WeatherThreading.Services;
 
@@ -26,7 +28,7 @@ public class WeatherService : IWeatherService
     public async Task<WeatherData> GetHistoricalWeatherDataAsync(string location, DateTime startDate, DateTime endDate)
     {
 
-        var coords = Dictionaries.CityMapping[location];
+        var coords = ParameterMappings.CityMapping[location];
         double latitude = coords.Item1;
         double longitude = coords.Item2;
         var url = $"{BaseUrl}?latitude={latitude}&longitude={longitude}&start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}&daily=temperature_2m_max";
@@ -48,14 +50,16 @@ public class WeatherService : IWeatherService
         try
         {
             var apiParameters = request.Parameters
-                .Select(p => Dictionaries.ParameterMapping.GetValueOrDefault(p, p))
+                .Select(p => ParameterMappings.RequestDataMapping.GetValueOrDefault(p, p))
                 .ToList();
 
             var timeChunks = TimeRangeSplitter.SplitTimeRange(request.StartDate, request.EndDate);
 
-            var coords = Dictionaries.CityMapping[request.Location];
+            var coords = ParameterMappings.CityMapping[request.Location];
             double latitude = coords.Item1;
             double longitude = coords.Item2;
+
+            await GetWeatherDataFromDB(request);
 
             //! Maybe semaphore here to limit the number of concurrent requests
             var tasks = timeChunks.Select(chunk =>
@@ -76,10 +80,8 @@ public class WeatherService : IWeatherService
 
             return mergedData;  
 
-            // getDataFromDB
             // formateResponsefunc
-           // return formatedResponse;        
-
+            // return formattedResponse;        
 
         }
         catch (Exception ex)
@@ -225,7 +227,7 @@ public class WeatherService : IWeatherService
 
     private async Task<WeatherDataResponse> SaveWeatherDataToDB(WeatherDataResponse weatherData, WeatherDataRequest request)
     {
-        var coords = Dictionaries.CityMapping[request.Location];
+        var coords = ParameterMappings.CityMapping[request.Location];
         var location = await _dbHandler.GetOrCreateLocationAsync(request.Location, coords.Item1, coords.Item2);
 
         var DBHandler = new DBHandler(_context);
@@ -275,19 +277,41 @@ public class WeatherService : IWeatherService
         }
     }
 
-    private async Task<WeatherDataResponse> GetWeatherDataFromDB(WeatherDataRequest request)
+    private async Task<KeyValuePair<string, List<object>>> GetWeatherDataFromDB(WeatherDataRequest request)
     {
-        //! THIS COULD BE DONE WITH LINQ
-        // Retrieve the weather data from the database
-        // This is a placeholder for the actual database retrieval logic
-        // You would typically use Entity Framework or another ORM to retrieve the data
+        var parameterKey = request.Parameters.FirstOrDefault();
+        if (string.IsNullOrEmpty(parameterKey) || !ParameterMappings.TableNameMapping.ContainsKey(parameterKey)) 
+        {
+            throw new ArgumentException("Invalid or missing parameter in request.");
+        }
+        var tableName = ParameterMappings.TableNameMapping[parameterKey];
+        Console.WriteLine($"Fetching data from table: {tableName}");
 
-        // Example:
-        // return await _dbContext.WeatherData
-        //     .Where(w => w.Location == request.Location && w.StartDate >= request.StartDate && w.EndDate <= request.EndDate)
-        //     .ToListAsync();
+        var locationObject = await _context.Location
+            .FirstOrDefaultAsync(l => l.LocationName == request.Location);
+        if (locationObject == null) 
+        {
+            throw new ArgumentException($"Location '{request.Location}' not found.");
+        }
+        var locationId = locationObject.Id;
 
-        return null;
+        var tableMap = new Dictionary<string, IQueryable<object>>
+        {
+            { "Temperature", _context.Temperature.Where(x => x.Date >= request.StartDate && x.Date <= request.EndDate) },
+            { "Precipitation", _context.Precipitation.Where(x => x.Date >= request.StartDate && x.Date <= request.EndDate) },
+            { "PrecipitationHours", _context.PrecipitationHours.Where(x => x.Date >= request.StartDate && x.Date <= request.EndDate) },
+            { "Wind", _context.Wind.Where(x => x.Date >= request.StartDate && x.Date <= request.EndDate) },
+            { "Radiation", _context.Radiation.Where(x => x.Date >= request.StartDate && x.Date <= request.EndDate) }
+        };
+
+        if (!tableMap.ContainsKey(tableName))
+        {
+            throw new ArgumentException($"Invalid table name: {tableName}");
+        }
+
+        var results = await tableMap[tableName].ToListAsync();
+    
+        return new KeyValuePair<string, List<object>>(tableName, results.Cast<object>().ToList());
     }
 
     private async Task<WeatherDataResponse> FormatWeatherDataForFrontend(WeatherDataResponse weatherData)
@@ -301,6 +325,4 @@ public class WeatherService : IWeatherService
         return weatherData;
     }
 
-    //Temperature
-    1950-1964, 1985-1990, 2000-2005, 2010-2015
 }
