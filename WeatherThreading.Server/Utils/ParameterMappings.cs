@@ -15,7 +15,6 @@ public class ParameterMappings {
     public static readonly Dictionary<string, string> TableNameMapping = new()
     {
         { "temperature", "Temperature" },
-        { "relative_humidity_2m", "relative_humidity_2m_mean" },
         { "precipitation_sum", "Precipitation" },
         { "precipitation_hours", "PrecipitationHours" },
         { "wind_speed_10m_max", "Wind" },
