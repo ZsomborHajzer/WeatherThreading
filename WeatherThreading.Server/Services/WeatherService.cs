@@ -1,9 +1,6 @@
 using System.Text.Json;
 using WeatherThreading.Models;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
 
 namespace WeatherThreading.Services;
 
@@ -14,6 +11,8 @@ public class WeatherService : IWeatherService
     private readonly ILogger<WeatherService> _logger;
     private readonly WeatherContext _context;
     private readonly DBHandler _dbHandler;
+    
+    private readonly SemaphoreSlim _semaphore;
 
     public WeatherService(HttpClient httpClient, ILogger<WeatherService> logger, WeatherContext context, DBHandler dbHandler)
     {
@@ -21,6 +20,7 @@ public class WeatherService : IWeatherService
         _logger = logger;
         _context = context;
         _dbHandler = dbHandler;
+        _semaphore = new SemaphoreSlim(Environment.ProcessorCount -1 > 0 ? Environment.ProcessorCount - 1 : 1, Environment.ProcessorCount -1 > 0 ? Environment.ProcessorCount - 1 : 1); 
     }
 
     public async Task<WeatherData> GetHistoricalWeatherDataAsync(string location, DateTime startDate, DateTime endDate)
@@ -57,16 +57,25 @@ public class WeatherService : IWeatherService
             double latitude = coords.Item1;
             double longitude = coords.Item2;
 
-            //! Maybe semaphore here to limit the number of concurrent requests
-            var tasks = timeChunks.Select(chunk =>
-                FetchWeatherDataForTimeRange(
-                    latitude,
-                    longitude,
-                    chunk.Start,
-                    chunk.End,
-                    apiParameters
-                )
-            );
+            
+            var tasks = timeChunks.Select(async chunk =>
+            {
+                await _semaphore.WaitAsync();
+                try
+                {
+                    return await FetchWeatherDataForTimeRange(
+                        latitude,
+                        longitude,
+                        chunk.Start, 
+                        chunk.End,
+                        apiParameters
+                    );
+                }
+                finally
+                {
+                    _semaphore.Release();
+                }
+            });
 
             var results = await Task.WhenAll(tasks);
 
@@ -301,6 +310,6 @@ public class WeatherService : IWeatherService
         return weatherData;
     }
 
-    //Temperature
-    1950-1964, 1985-1990, 2000-2005, 2010-2015
+    // Temperature
+    // 1950-1964, 1985-1990, 2000-2005, 2010-2015
 }

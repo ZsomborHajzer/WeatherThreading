@@ -43,7 +43,8 @@ public class DBHandler
             .ToListAsync();
 
         var temperatureAverages = new double[temperatureMaxList.Count];
-
+        
+        //! THIS IS PLINQ
         Parallel.For(0, temperatureMaxList.Count, i =>
         {
             temperatureAverages[i] = (temperatureMaxList[i] + temperatureMinList[i]) / 2;
