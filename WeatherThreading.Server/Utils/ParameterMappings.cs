@@ -21,6 +21,15 @@ public class ParameterMappings {
         { "shortwave_radiation_sum", "Radiation" }
     };
 
+    public static readonly Dictionary<string, string> RequestColumnsMapping = new()
+    {
+        { "temperature", "TemperatureAverage, Date" },
+        { "precipitation_sum", "PrecipitationSum, Date" },
+        { "precipitation_hours", "PrecipitationHoursValue, Date" },
+        { "wind_speed_10m_max", "WindSpeedMax, Date" },
+        { "shortwave_radiation_sum", "ShortWaveRadiationSum, Date" }
+    };
+
     public static readonly Dictionary<string, (double, double)> CityMapping = new()
     {
         { "Budapest, Hungary", (47.4925, 19.051389) },

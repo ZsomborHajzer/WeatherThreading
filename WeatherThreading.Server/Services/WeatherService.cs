@@ -421,19 +421,23 @@ public class WeatherService : IWeatherService
             throw new ArgumentException($"Invalid table name: {tableName}");
         }
 
-        var results = await tableMap[tableName].ToListAsync();
+        var queryResults = await tableMap[tableName].ToListAsync();
 
-        if (results.Count == 0)
+        if (queryResults.Count == 0)
         {
             return new Dictionary<string, List<object>>();
         }
 
-        var properties = results.First().GetType().GetProperties();
+        var requestedColumns = ParameterMappings.RequestColumnsMapping[parameterKey];
+
+        var properties = queryResults.First().GetType().GetProperties()
+            .Where(p => requestedColumns.Contains(p.Name))
+            .ToList();
 
         var result = new Dictionary<string, List<object>>();
         foreach (var prop in properties)
         {
-            result[prop.Name] = [.. results.Select(d => prop.GetValue(d))];
+            result[prop.Name] = [.. queryResults.Select(d => prop.GetValue(d))];
         }
 
         return result;
