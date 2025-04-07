@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
+using Microsoft.AspNetCore.Http.Timeouts;
 
 namespace WeatherThreading.Services;
 
@@ -25,7 +26,7 @@ public class WeatherService : IWeatherService
         _logger = logger;
         _context = context;
         _dbHandler = dbHandler;
-        _semaphore = new SemaphoreSlim(Environment.ProcessorCount - 1 > 0 ? Environment.ProcessorCount - 1 : 1);
+        _semaphore = new SemaphoreSlim(2);
     }
 
     public async Task<WeatherData> GetHistoricalWeatherDataAsync(string location, DateTime startDate, DateTime endDate)
@@ -62,8 +63,24 @@ public class WeatherService : IWeatherService
             double latitude = coords.Item1;
             double longitude = coords.Item2;
 
-            // If data in time range, location, and data type already exist
-            await GetWeatherDataFromDB(request);
+            if (await AreDatesContinuousAsync(request))
+            {
+                try
+                {
+                    var result = await GetWeatherDataFromDB(request);
+                    
+                    return new WeatherDataResponse
+                    {
+                        Latitude = latitude,
+                        Longitude = longitude,
+                        Daily = result
+                    };
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Data not found in DB, proceeding to fetch from API");
+                }
+            }
 
             var tasks = timeChunks.Select(async chunk =>
             {
@@ -101,6 +118,84 @@ public class WeatherService : IWeatherService
             _logger.LogError(ex, "Error processing weather data request");
             throw;
         }
+    }
+
+    private async Task<bool> AreDatesContinuousAsync(WeatherDataRequest request)
+    {
+        var expectedDates = Enumerable.Range(0, (request.EndDate - request.StartDate).Days + 1)
+                                    .Select(offset => request.StartDate.Date.AddDays(offset))
+                                    .ToHashSet();
+
+        IEnumerable<DateTime> existingDates;
+
+        var parameterKey = request.Parameters.FirstOrDefault();
+
+        if (string.IsNullOrEmpty(parameterKey) || !ParameterMappings.TableNameMapping.ContainsKey(parameterKey))
+        {
+            throw new ArgumentException("Invalid or missing parameter in request.");
+        }
+
+        var locationObject = await _context.Location
+            .FirstOrDefaultAsync(l => l.LocationName == request.Location);
+
+        if (locationObject == null)
+        {
+            throw new ArgumentException($"Location '{request.Location}' not found.");
+        }
+
+        var locationId = locationObject.Id;
+
+        var tableName = ParameterMappings.TableNameMapping[parameterKey];
+
+        switch (tableName)
+        {
+            case "Temperature":
+                existingDates = await _context.Temperature
+                    .Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate)
+                    .Select(x => x.Date.Date)
+                    .Distinct()
+                    .ToListAsync();
+                break;
+
+            case "Precipitation":
+                existingDates = await _context.Precipitation
+                    .Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate)
+                    .Select(x => x.Date.Date)
+                    .Distinct()
+                    .ToListAsync();
+                break;
+
+            case "PrecipitationHours":
+                existingDates = await _context.PrecipitationHours
+                    .Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate)
+                    .Select(x => x.Date.Date)
+                    .Distinct()
+                    .ToListAsync();
+                break;
+
+            case "Radiation":
+                existingDates = await _context.Radiation
+                    .Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate)
+                    .Select(x => x.Date.Date)
+                    .Distinct()
+                    .ToListAsync();
+                break;
+
+            case "Wind":
+                existingDates = await _context.Wind
+                    .Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate)
+                    .Select(x => x.Date.Date)
+                    .Distinct()
+                    .ToListAsync();
+                break;
+
+            default:
+                throw new ArgumentException($"Invalid table name: {tableName}");
+        }
+
+        var existingDateSet = existingDates.ToHashSet();
+
+        return expectedDates.SetEquals(existingDateSet);
     }
 
     private async Task<WeatherData> FetchWeatherDataForTimeRange(
@@ -289,7 +384,7 @@ public class WeatherService : IWeatherService
         }
     }
 
-    private async Task<KeyValuePair<string, List<object>>> GetWeatherDataFromDB(WeatherDataRequest request)
+    private async Task<Dictionary<string, List<object>>> GetWeatherDataFromDB(WeatherDataRequest request)
     {
         var parameterKey = request.Parameters.FirstOrDefault();
 
@@ -314,11 +409,11 @@ public class WeatherService : IWeatherService
 
         var tableMap = new Dictionary<string, IQueryable<object>>
         {
-            { "Temperature", _context.Temperature.Where(x => x.Date >= request.StartDate && x.Date <= request.EndDate) },
-            { "Precipitation", _context.Precipitation.Where(x => x.Date >= request.StartDate && x.Date <= request.EndDate) },
-            { "PrecipitationHours", _context.PrecipitationHours.Where(x => x.Date >= request.StartDate && x.Date <= request.EndDate) },
-            { "Wind", _context.Wind.Where(x => x.Date >= request.StartDate && x.Date <= request.EndDate) },
-            { "Radiation", _context.Radiation.Where(x => x.Date >= request.StartDate && x.Date <= request.EndDate) }
+            { "Temperature", _context.Temperature.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) },
+            { "Precipitation", _context.Precipitation.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) },
+            { "PrecipitationHours", _context.PrecipitationHours.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) },
+            { "Wind", _context.Wind.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) },
+            { "Radiation", _context.Radiation.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) }
         };
 
         if (!tableMap.ContainsKey(tableName))
@@ -328,7 +423,20 @@ public class WeatherService : IWeatherService
 
         var results = await tableMap[tableName].ToListAsync();
 
-        return new KeyValuePair<string, List<object>>(tableName, results.Cast<object>().ToList());
+        if (results.Count == 0)
+        {
+            return new Dictionary<string, List<object>>();
+        }
+
+        var properties = results.First().GetType().GetProperties();
+
+        var result = new Dictionary<string, List<object>>();
+        foreach (var prop in properties)
+        {
+            result[prop.Name] = [.. results.Select(d => prop.GetValue(d))];
+        }
+
+        return result;
     }
 
     private async Task<WeatherDataResponse> FormatWeatherDataForFrontend(WeatherDataResponse weatherData)
