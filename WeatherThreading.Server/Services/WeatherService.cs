@@ -16,7 +16,7 @@ public class WeatherService : IWeatherService
     private readonly ILogger<WeatherService> _logger;
     private readonly WeatherContext _context;
     private readonly DBHandler _dbHandler;
-    
+
     private readonly SemaphoreSlim _semaphore;
 
     public WeatherService(HttpClient httpClient, ILogger<WeatherService> logger, WeatherContext context, DBHandler dbHandler)
@@ -25,7 +25,7 @@ public class WeatherService : IWeatherService
         _logger = logger;
         _context = context;
         _dbHandler = dbHandler;
-        _semaphore = new SemaphoreSlim(Environment.ProcessorCount -1 > 0 ? Environment.ProcessorCount - 1 : 1); 
+        _semaphore = new SemaphoreSlim(Environment.ProcessorCount - 1 > 0 ? Environment.ProcessorCount - 1 : 1);
     }
 
     public async Task<WeatherData> GetHistoricalWeatherDataAsync(string location, DateTime startDate, DateTime endDate)
@@ -73,7 +73,7 @@ public class WeatherService : IWeatherService
                     return await FetchWeatherDataForTimeRange(
                         latitude,
                         longitude,
-                        chunk.Start, 
+                        chunk.Start,
                         chunk.End,
                         apiParameters
                     );
@@ -90,7 +90,7 @@ public class WeatherService : IWeatherService
 
             await SaveWeatherDataToDB(mergedData, request);
 
-            return mergedData;  
+            return mergedData;
 
             // formateResponsefunc
             // return formattedResponse;        
@@ -292,19 +292,24 @@ public class WeatherService : IWeatherService
     private async Task<KeyValuePair<string, List<object>>> GetWeatherDataFromDB(WeatherDataRequest request)
     {
         var parameterKey = request.Parameters.FirstOrDefault();
-        if (string.IsNullOrEmpty(parameterKey) || !ParameterMappings.TableNameMapping.ContainsKey(parameterKey)) 
+
+        if (string.IsNullOrEmpty(parameterKey) || !ParameterMappings.TableNameMapping.ContainsKey(parameterKey))
         {
             throw new ArgumentException("Invalid or missing parameter in request.");
         }
+
         var tableName = ParameterMappings.TableNameMapping[parameterKey];
+        
         Console.WriteLine($"Fetching data from table: {tableName}");
 
         var locationObject = await _context.Location
             .FirstOrDefaultAsync(l => l.LocationName == request.Location);
-        if (locationObject == null) 
+
+        if (locationObject == null)
         {
             throw new ArgumentException($"Location '{request.Location}' not found.");
         }
+
         var locationId = locationObject.Id;
 
         var tableMap = new Dictionary<string, IQueryable<object>>
@@ -322,7 +327,7 @@ public class WeatherService : IWeatherService
         }
 
         var results = await tableMap[tableName].ToListAsync();
-    
+
         return new KeyValuePair<string, List<object>>(tableName, results.Cast<object>().ToList());
     }
 
