@@ -10,10 +10,10 @@ const cities = [
 
 const yAxisOptions = [
   { label: "Temperature", value: "temperature" },
-  { label: "Relative Humidity", value: "relative_humidity" },
+  { label: "Relative Humidity", value: "relative_humidity_2m" },
   { label: "Precipitation Sum", value: "precipitation_sum" },
   { label: "Precipitation Hours", value: "precipitation_hours" },
-  { label: "Wind Speed", value: "wind_speed" },
+  { label: "Wind Speed (10m max)", value: "wind_speed_10m_max" },
   { label: "Shortwave Radiation Sum", value: "shortwave_radiation_sum" }
 ];
 
@@ -31,19 +31,20 @@ const Dashboard: React.FC = () => {
       console.log("Please fill in all the fields.");
       return;
     }
-  
+
     try {
       setLoading(true);
       setError("");
 
-      // Construct the request payload
+      // request payload
       const requestPayload = {
         location: selectedCity,
         startDate: fromDate,
         endDate: toDate,
-        parameters: [selectedYAxis], // Assuming only one parameter is selected at a time
+        parameters: [selectedYAxis], // Only one parameter is allowed at a time
       };
 
+      // Send the request
       const response = await fetch("/api/Weather/Processed", {
         method: "POST",
         headers: {
@@ -58,9 +59,9 @@ const Dashboard: React.FC = () => {
 
       const data = await response.json();
 
-      // Assuming the response is structured as { xaxistitle, yaxistitle, data }
+      // the response is structured as { xaxistitle, yaxistitle, data }
       const processedData = data.data.map((item: any) => ({
-        name: item.name, // Date (or other appropriate x-axis value)
+        name: item.name, // Date 
         value: item.value, // The corresponding data value
       }));
 
@@ -71,7 +72,7 @@ const Dashboard: React.FC = () => {
       setLoading(false);
     }
   };
-  
+
   return (
     <div className="dashboard-container">
       <h1 className="dashboard-title">Weather Dashboard</h1>
