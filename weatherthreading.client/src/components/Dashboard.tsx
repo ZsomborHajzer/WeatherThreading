@@ -1,4 +1,4 @@
-import { LineChart, XAxis, Line, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
+import { LineChart, XAxis, YAxis, Line, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import React, { useState } from "react";
 import "../index.css";
 
@@ -28,46 +28,69 @@ const Dashboard: React.FC = () => {
 
   const fetchChartData = async () => {
     console.log("Fetch data function");
+  
     if (!selectedCity || !fromDate || !toDate) {
       console.log("Please fill in all the fields.");
       return;
     }
-
+  
     try {
       setLoading(true);
-      setError("");
-
-      // request payload
+      setError(""); // Clear previous errors
+  
+      // Request payload
       const requestPayload = {
         location: selectedCity,
         startDate: fromDate,
         endDate: toDate,
         parameters: [selectedYAxis], // Only one parameter is allowed at a time
       };
-
+  
       console.log("Request Body:", JSON.stringify(requestPayload));
-
+  
       // Send the request
       const response = await fetch("http://localhost:8080/api/Weather/processed", {
         method: "POST",
-        
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(requestPayload),
       });
-
+  
+      // Log the full response to help diagnose the issue
+      console.log("Response Status:", response.status);
+      console.log("Response Headers:", response.headers);
+  
       if (!response.ok) {
-        throw new Error("Failed to fetch data");
+        throw new Error(`Failed to fetch data. Status: ${response.status}`);
       }
-
-      const data = await response.json();
-
-      // the response is structured as { xaxistitle, yaxistitle, data }
-      const processedData = data.data.map((item: any) => ({
-        name: item.name, // Date 
-        value: item.value, // The corresponding data value
-      }));
-
-      setChartData(processedData);
+  
+      const responseBody = await response.text(); // Get the raw response body
+      console.log("Raw Response Body:", responseBody);
+  
+      try {
+        const data = JSON.parse(responseBody); // Try to parse the response
+        console.log("Parsed Data:", data);
+  
+        // Check if data and data.data exist
+        if (!data || !data.daily || !data.daily.data) {
+          throw new Error("Response data or data array is missing");
+        }
+  
+        // Ensure the data is in the correct format for the chart (array of objects with 'name' and 'value')
+        const processedData = data.daily.data.map((item: any) => ({
+          name: item.xaxis, // Date 
+          value: item.yaxis, // The corresponding data value
+        }));
+  
+        console.log("Processed Data:", processedData);
+        setChartData(processedData);
+      } catch (e) {
+        console.error("Error parsing JSON response:", e);
+        setError("Error parsing response data.");
+      }
     } catch (error) {
+      console.error("Error fetching chart data:", error);
       setError("Error fetching chart data.");
     } finally {
       setLoading(false);
@@ -99,7 +122,7 @@ const Dashboard: React.FC = () => {
             <span>From: </span>
             <input type="date" className="date-input" 
               min="1950-01-01"
-              max={new Date().toISOString().split("T")[0]}
+              max="2024-12-31"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)} />
           </div>
@@ -107,7 +130,7 @@ const Dashboard: React.FC = () => {
             <span>To: </span>
             <input type="date" className="date-input" 
               min="1950-01-01"
-              max={new Date().toISOString().split("T")[0]}
+              max="2024-12-31"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)} />
           </div>
@@ -142,14 +165,27 @@ const Dashboard: React.FC = () => {
 
       {chartData.length > 0 && (
         <div className="dashboard-card">
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={chartData} margin={{ top: 20, right: 60, bottom: 100, left: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
+              <XAxis 
+                dataKey="name" 
+                tickFormatter={(date: string) => {
+                  const dateObj = new Date(date);
+                  return dateObj.toLocaleDateString(); // Format date
+                }} 
+                angle={45} // Rotate the labels by 45 degrees
+                textAnchor="start" // Align the text to the start of the rotated label
+              />
+              <YAxis 
+                domain={['auto', 'auto']} // Dynamically scale Y-axis based on data
+              />
               <Tooltip />
-              <Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} />
+              <Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
+
+
         </div>
       )}
     </div>
