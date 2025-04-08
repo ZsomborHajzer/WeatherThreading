@@ -49,7 +49,7 @@ public class WeatherService : IWeatherService
         return weatherData ?? throw new Exception("Failed to deserialize weather data");
     }
 
-    public async Task<WeatherDataResponse> GetProcessedWeatherDataAsync(WeatherDataRequest request)
+    public async Task<WeatherDataGraphResponse> GetProcessedWeatherDataAsync(WeatherDataRequest request)
     {
         try
         {
@@ -63,23 +63,20 @@ public class WeatherService : IWeatherService
             double latitude = coords.Item1;
             double longitude = coords.Item2;
 
-            if (await AreDatesContinuousAsync(request))
+            try
             {
-                try
+                if (await AreDatesContinuousAsync(request))
                 {
                     var result = await GetWeatherDataFromDB(request);
-                    
-                    return new WeatherDataResponse
-                    {
-                        Latitude = latitude,
-                        Longitude = longitude,
-                        Daily = result
-                    };
+                    var databaseResult = FormatWeatherDataForFrontend(result);
+                    databaseResult.Latitude = latitude;
+                    databaseResult.Longitude = longitude;
+                    return databaseResult;
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Data not found in DB, proceeding to fetch from API");
-                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Data not found in DB, proceeding to fetch from API");
             }
 
             var tasks = timeChunks.Select(async chunk =>
@@ -107,10 +104,13 @@ public class WeatherService : IWeatherService
 
             await SaveWeatherDataToDB(mergedData, request);
 
-            return mergedData;
+            mergedData.Daily.Remove("temperature_2m_max");
+            mergedData.Daily.Remove("temperature_2m_min");
 
-            // formateResponsefunc
-            // return formattedResponse;        
+            var graphResult = FormatWeatherDataForFrontend(mergedData.Daily);
+            graphResult.Latitude = latitude;
+            graphResult.Longitude = longitude;
+            return graphResult;    
 
         }
         catch (Exception ex)
@@ -245,11 +245,11 @@ public class WeatherService : IWeatherService
         //! We could also add threading here to speed up the merging process (think read/write lock or plinq)
         foreach (var result in results)
         {
-            if (!mergedResponse.Daily.ContainsKey("time"))
+            if (!mergedResponse.Daily.ContainsKey("Date"))
             {
-                mergedResponse.Daily["time"] = new List<object>();
+                mergedResponse.Daily["Date"] = new List<object>();
             }
-            mergedResponse.Daily["time"].AddRange(result.Daily.Time.Select(t => (object)t));
+            mergedResponse.Daily["Date"].AddRange(result.Daily.Time.Select(t => (object)t));
 
             // Merge temperature data
             if (result.Daily.Temperature2mMax.Any())
@@ -320,17 +320,17 @@ public class WeatherService : IWeatherService
             }
         }
 
+        if (mergedResponse.Daily.ContainsKey("temperature_2m_max") && mergedResponse.Daily.ContainsKey("temperature_2m_min"))
+        {
+            mergedResponse.Daily["temperature_2m_avg"] = new List<object>();
+            mergedResponse.Daily["temperature_2m_avg"] = mergedResponse.Daily["temperature_2m_max"]
+                .Zip(mergedResponse.Daily["temperature_2m_min"], (max, min) => ((double)max + (double)min) / 2)
+                .Cast<object>()
+                .ToList();
+        }
+
         return mergedResponse;
     }
-
-    // private async Task<WeatherDataResponse> FindMissingDataFromDB(WeatherDataRequest request)
-    // {
-    //     // Check if the data is already in the database
-    //     // If not, fetch it from the API
-    //     // This is a placeholder for the actual database check logic
-
-    //     return null;
-    // }
 
     private async Task<WeatherDataResponse> SaveWeatherDataToDB(WeatherDataResponse weatherData, WeatherDataRequest request)
     {
@@ -344,33 +344,33 @@ public class WeatherService : IWeatherService
 
             if (weatherData.Daily != null)
             {
-                if (weatherData.Daily.ContainsKey("time"))
+                if (weatherData.Daily.ContainsKey("Date"))
                 {
-                    var timeList = weatherData.Daily["time"].Cast<string>().ToList();
+                    var dateList = weatherData.Daily["Date"].Cast<string>().ToList();
 
                     if (weatherData.Daily.ContainsKey("temperature_2m_max"))
                     {
-                        await DBHandler.AddTemperatureBulk(weatherData, timeList, location);
+                        await DBHandler.AddTemperatureBulk(weatherData, dateList, location);
                     }
 
                     if (weatherData.Daily.ContainsKey("precipitation_sum"))
                     {
-                        await DBHandler.AddPrecipitationSumBulk(weatherData, timeList, location);
+                        await DBHandler.AddPrecipitationSumBulk(weatherData, dateList, location);
                     }
 
                     if (weatherData.Daily.ContainsKey("wind_speed_10m_max"))
                     {
-                        await DBHandler.AddWindBulk(weatherData, timeList, location);
+                        await DBHandler.AddWindBulk(weatherData, dateList, location);
                     }
 
                     if (weatherData.Daily.ContainsKey("shortwave_radiation_sum"))
                     {
-                        await DBHandler.AddRadiationBulk(weatherData, timeList, location);
+                        await DBHandler.AddRadiationBulk(weatherData, dateList, location);
                     }
 
                     if (weatherData.Daily.ContainsKey("precipitation_hours"))
                     {
-                        await DBHandler.AddPrecipitationHoursBulk(weatherData, timeList, location);
+                        await DBHandler.AddPrecipitationHoursBulk(weatherData, dateList, location);
                     }
                 }
             }
@@ -443,14 +443,34 @@ public class WeatherService : IWeatherService
         return result;
     }
 
-    private async Task<WeatherDataResponse> FormatWeatherDataForFrontend(WeatherDataResponse weatherData)
+    private WeatherDataGraphResponse FormatWeatherDataForFrontend(Dictionary<string, List<object>> result)
     {
-        // Format the weather data for the frontend
-        // This is a placeholder for the actual formatting logic
+        if (!result.ContainsKey("Date") || result.Count != 2)
+        {
+            throw new ArgumentException("Input dictionary must contain 'Date' and one value axis.");
+        }
 
-        // Example:
-        // weatherData.FormattedData = weatherData.Daily.Temperature2mMax.Select(t => $"{t} °C").ToList();
+        var dates = result["Date"].Select(x => DateTime.Parse(x.ToString())).ToList();
+        var valueKey = result.Keys.First(k => k != "Date");
+        var values = result[valueKey].Select(Convert.ToDouble).ToList();
 
-        return weatherData;
+        if (dates.Count != values.Count)
+            throw new InvalidOperationException("Date and value lists must have the same length.");
+
+        var chartData = dates.Select((date, i) => new ChartDataPoint
+        {
+                xaxis = date,
+                yaxis = values[i]
+            }).ToList();
+
+        return new WeatherDataGraphResponse 
+        {
+            XAxisTitle = "Date",
+            YAxisTitle = valueKey,
+            Daily = new Dictionary<string, List<ChartDataPoint>> 
+            {
+                {"data", chartData}
+            }
+        };
     }
 }

@@ -21,6 +21,15 @@ public class ParameterMappings {
         { "shortwave_radiation_sum", "Radiation" }
     };
 
+    public static readonly Dictionary<string, string> TableColumnMapping = new()
+    {
+        { "temperature", "TemperatureAverage" },
+        { "precipitation_sum", "PrecipitationSum" },
+        { "precipitation_hours", "PrecipitationHoursValue" },
+        { "wind_speed_10m_max", "WindSpeedMax" },
+        { "shortwave_radiation_sum", "ShortWaveRadiationSum" }
+    };
+
     public static readonly Dictionary<string, string> RequestColumnsMapping = new()
     {
         { "temperature", "TemperatureAverage, Date" },
