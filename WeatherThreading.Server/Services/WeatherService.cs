@@ -101,9 +101,11 @@ public class WeatherService : IWeatherService
             var results = await Task.WhenAll(tasks);
 
             var mergedData = MergeWeatherDataResults(results);
-            Console.WriteLine(mergedData.Daily);
 
             await SaveWeatherDataToDB(mergedData, request);
+
+            mergedData.Daily.Remove("temperature_2m_max");
+            mergedData.Daily.Remove("temperature_2m_min");
 
             var graphResult = FormatWeatherDataForFrontend(mergedData.Daily);
             graphResult.Latitude = latitude;
@@ -316,6 +318,15 @@ public class WeatherService : IWeatherService
                 }
                 mergedResponse.Daily["shortwave_radiation_sum"].AddRange(result.Daily.ShortWaveRadiationSum.Select(s => (object)s));
             }
+        }
+
+        if (mergedResponse.Daily.ContainsKey("temperature_2m_max") && mergedResponse.Daily.ContainsKey("temperature_2m_min"))
+        {
+            mergedResponse.Daily["temperature_2m_avg"] = new List<object>();
+            mergedResponse.Daily["temperature_2m_avg"] = mergedResponse.Daily["temperature_2m_max"]
+                .Zip(mergedResponse.Daily["temperature_2m_min"], (max, min) => ((double)max + (double)min) / 2)
+                .Cast<object>()
+                .ToList();
         }
 
         return mergedResponse;

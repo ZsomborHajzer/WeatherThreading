@@ -36,6 +36,7 @@ public class DBHandler
         var temperatures = new List<Temperature>();
         var temperatureMaxList = weatherData.Daily["temperature_2m_max"].Cast<double>().ToList();
         var temperatureMinList = weatherData.Daily["temperature_2m_min"].Cast<double>().ToList();
+        var temperatureAverageList = weatherData.Daily["temperature_2m_avg"].Cast<double>().ToList();
 
         var existingDates = await _context.Temperature
             .Where(t => t.LocationId == location.Id)
@@ -44,11 +45,6 @@ public class DBHandler
 
         var temperatureAverages = new double[temperatureMaxList.Count];
         
-        //! THIS IS PLINQ
-        Parallel.For(0, temperatureMaxList.Count, i =>
-        {
-            temperatureAverages[i] = (temperatureMaxList[i] + temperatureMinList[i]) / 2;
-        });
 
         for (int i = 0; i < temperatureMaxList.Count; i++)
         {
@@ -62,7 +58,7 @@ public class DBHandler
                 LocationId = location.Id,
                 TemperatureMax = temperatureMaxList[i],
                 TemperatureMin = temperatureMinList[i],
-                TemperatureAverage = temperatureAverages[i],
+                TemperatureAverage = temperatureAverageList[i],
                 Date = date
             };
             temperatures.Add(temperature);
