@@ -5,5 +5,5 @@ namespace WeatherThreading.Services;
 public interface IWeatherService
 {
     Task<WeatherData> GetHistoricalWeatherDataAsync(string location, DateTime startDate, DateTime endDate);
-    Task<WeatherDataResponse> GetProcessedWeatherDataAsync(WeatherDataRequest request);
+    Task<WeatherDataGraphResponse> GetProcessedWeatherDataAsync(WeatherDataRequest request);
 } 
