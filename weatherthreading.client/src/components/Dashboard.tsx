@@ -27,6 +27,7 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState("");
 
   const fetchChartData = async () => {
+    console.log("Fetch data function");
     if (!selectedCity || !fromDate || !toDate) {
       console.log("Please fill in all the fields.");
       return;
@@ -44,12 +45,12 @@ const Dashboard: React.FC = () => {
         parameters: [selectedYAxis], // Only one parameter is allowed at a time
       };
 
+      console.log("Request Body:", JSON.stringify(requestPayload));
+
       // Send the request
-      const response = await fetch("/api/Weather/Processed", {
+      const response = await fetch("http://localhost:8080/api/Weather/processed", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        
         body: JSON.stringify(requestPayload),
       });
 
