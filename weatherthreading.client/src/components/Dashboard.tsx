@@ -23,37 +23,58 @@ const Dashboard: React.FC = () => {
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedYAxis, setSelectedYAxis] = useState("temperature");
   const [chartData, setChartData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const fetchChartData = async () => {
+    if (!selectedCity || !fromDate || !toDate) {
+      console.log("Please fill in all the fields.");
+      return;
+    }
+  
     try {
-      const response = await fetch(
-        `/api/data?city=${encodeURIComponent(selectedCity)}&from=${fromDate}&to=${toDate}&yAxis=${selectedYAxis}`
-      );
-      
+      setLoading(true);
+      setError("");
+
+      // Construct the request payload
+      const requestPayload = {
+        location: selectedCity,
+        startDate: fromDate,
+        endDate: toDate,
+        parameters: [selectedYAxis], // Assuming only one parameter is selected at a time
+      };
+
+      const response = await fetch("/api/Weather/Processed", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestPayload),
+      });
+
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
+        throw new Error("Failed to fetch data");
       }
-  
-      const result = await response.json();
-      
-      // Transform data to match Recharts expected format
-      const formattedData = result.data.map((item: any) => ({
-        name: item.xaxis,  // Will be used for X-axis
-        value: item.yaxis  // Will be used for Y-axis
+
+      const data = await response.json();
+
+      // Assuming the response is structured as { xaxistitle, yaxistitle, data }
+      const processedData = data.data.map((item: any) => ({
+        name: item.name, // Date (or other appropriate x-axis value)
+        value: item.value, // The corresponding data value
       }));
-  
-      setChartData(formattedData);
-      
+
+      setChartData(processedData);
     } catch (error) {
-      console.error("Fetch error:", error);
-    
+      setError("Error fetching chart data.");
+    } finally {
+      setLoading(false);
     }
   };
-
   
   return (
     <div className="dashboard-container">
-      <h1 className="dashboard-title">Dashboard</h1>
+      <h1 className="dashboard-title">Weather Dashboard</h1>
 
       <div className="input-row">
         <label htmlFor="location-search" className="input-label">Location</label>
@@ -70,7 +91,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="input-row">
-        <label className="input-label">X Axis</label>
+        <label className="input-label">Date Range</label>
         <div className="date-selectors">
           <div className="date-selector">
             <span>From: </span>
@@ -94,7 +115,6 @@ const Dashboard: React.FC = () => {
       <div className="input-row">
         <label className="input-label">Y Axis</label>
         <select
-          id="y-axis-dropdown"
           value={selectedYAxis}
           onChange={(e) => setSelectedYAxis(e.target.value)}
           className="y-axis-dropdown"
@@ -115,16 +135,21 @@ const Dashboard: React.FC = () => {
         </button>
       </div>
 
-      <div className="dashboard-card">
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <Tooltip />
-            <Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      {loading && <p>Loading...</p>}
+      {error && <p style={{ color: "red" }}>{error}</p>}
+
+      {chartData.length > 0 && (
+        <div className="dashboard-card">
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <Tooltip />
+              <Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 };
