@@ -28,6 +28,30 @@ public class WeatherDataResponse
     [JsonPropertyName("timezone")]
     public string Timezone { get; set; } = string.Empty;
 
+    [JsonPropertyName("x-axis-title")]
+    public string XAxisTitle { get; set; } = string.Empty;
+
+    [JsonPropertyName("y-axis-title")]
+    public string YAxisTitle { get; set; } = string.Empty;
+
     [JsonPropertyName("daily")]
     public Dictionary<string, List<object>> Daily { get; set; } = new();
+} 
+
+public class WeatherDataGraphResponse
+{
+    [JsonPropertyName("latitude")]
+    public double Latitude { get; set; }
+
+    [JsonPropertyName("longitude")]
+    public double Longitude { get; set; }
+
+    [JsonPropertyName("x-axis-title")]
+    public string XAxisTitle { get; set; } = string.Empty;
+
+    [JsonPropertyName("y-axis-title")]
+    public string YAxisTitle { get; set; } = string.Empty;
+
+    [JsonPropertyName("daily")]
+    public Dictionary<string, List<ChartDataPoint>> Daily { get; set; } = new();
 } 
