@@ -455,7 +455,9 @@ public class WeatherService : IWeatherService
         var values = result[valueKey].Select(Convert.ToDouble).ToList();
 
         if (dates.Count != values.Count)
+        {
             throw new InvalidOperationException("Date and value lists must have the same length.");
+        }
 
         var chartData = dates.Select((date, i) => new ChartDataPoint
         {
