@@ -25,15 +25,6 @@ public class WeatherDataResponse
     [JsonPropertyName("longitude")]
     public double Longitude { get; set; }
 
-    [JsonPropertyName("timezone")]
-    public string Timezone { get; set; } = string.Empty;
-
-    [JsonPropertyName("x-axis-title")]
-    public string XAxisTitle { get; set; } = string.Empty;
-
-    [JsonPropertyName("y-axis-title")]
-    public string YAxisTitle { get; set; } = string.Empty;
-
     [JsonPropertyName("daily")]
     public Dictionary<string, List<object>> Daily { get; set; } = new();
 } 

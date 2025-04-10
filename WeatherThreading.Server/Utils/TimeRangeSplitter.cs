@@ -6,7 +6,7 @@ namespace WeatherThreading.Services;
     * It defaults the first date to the first day of the selected year
     * and the last date to the last day of the selected year
 */
-public class TimeRangeSplitter
+public class TimeRangeTools
 {
     private const int MaxDaysPerChunk = 365; // Maximum days per API request
 

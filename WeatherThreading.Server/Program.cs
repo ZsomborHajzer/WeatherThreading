@@ -1,10 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using WeatherThreading.Models;
-using Pomelo.EntityFrameworkCore.MySql;
 using WeatherThreading.Services;
-using WeatherThreading.Server.Data.Configurations;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
-
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();

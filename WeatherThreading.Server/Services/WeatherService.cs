@@ -1,12 +1,6 @@
 using System.Text.Json;
 using WeatherThreading.Models;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
-using Microsoft.AspNetCore.Http.Timeouts;
 
 namespace WeatherThreading.Services;
 
@@ -57,7 +51,7 @@ public class WeatherService : IWeatherService
                 .Select(p => ParameterMappings.RequestDataMapping.GetValueOrDefault(p, p))
                 .ToList();
 
-            var timeChunks = TimeRangeSplitter.SplitTimeRange(request.StartDate, request.EndDate);
+            var timeChunks = TimeRangeTools.SplitTimeRange(request.StartDate, request.EndDate);
 
             var coords = ParameterMappings.CityMapping[request.Location];
             double latitude = coords.Item1;
@@ -238,7 +232,6 @@ public class WeatherService : IWeatherService
         {
             Latitude = results[0].Latitude,
             Longitude = results[0].Longitude,
-            Timezone = results[0].Timezone,
             Daily = new Dictionary<string, List<object>>()
         };
 
