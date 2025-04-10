@@ -1,3 +1,6 @@
 Add comments to the code highlightting what is what
-Add background task data insertion for db
+Write readme file
 Add parallel PLINQ for calculation on the avg temperature
+Fix bug where data fetched from the api does not have the correct time range in the response
+Remove comments from frontend code
+Merge everything to develop then to main

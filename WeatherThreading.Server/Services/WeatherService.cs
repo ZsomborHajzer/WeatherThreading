@@ -1,6 +1,6 @@
 using System.Text.Json;
 using WeatherThreading.Models;
-using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 
 namespace WeatherThreading.Services;
 
@@ -9,14 +9,14 @@ public class WeatherService : IWeatherService
     private readonly HttpClient _httpClient;
     private const string BaseUrl = "https://archive-api.open-meteo.com/v1/archive";
     private readonly WeatherContext _context;
-    private readonly DBHandler _dbHandler;
     private readonly SemaphoreSlim _semaphore;
+    private readonly IServiceProvider _serviceProvider;
 
-    public WeatherService(HttpClient httpClient, WeatherContext context, DBHandler dbHandler)
+    public WeatherService(HttpClient httpClient, WeatherContext context, IServiceProvider serviceProvider)
     {
         _httpClient = httpClient;
         _context = context;
-        _dbHandler = dbHandler;
+        _serviceProvider = serviceProvider;
         //Limited to 2 becuase any more would cause the requests to be sent to quickly and we would get rate limited
         _semaphore = new SemaphoreSlim(2);
     }
@@ -47,6 +47,7 @@ public class WeatherService : IWeatherService
     {
         try
         {
+
             var apiParameters = request.Parameters
                 .Select(p => ParameterMappings.RequestDataMapping.GetValueOrDefault(p, p))
                 .ToList();
@@ -62,7 +63,7 @@ public class WeatherService : IWeatherService
                 if (await TimeRangeTools.AreDatesContinuousAsync(request, _context))
                 {
                     var result = await GetWeatherDataFromDB(request);
-                    var databaseResult = FormatWeatherDataForFrontend(result);
+                    var databaseResult = FormatWeatherData(result);
                     databaseResult.Latitude = latitude;
                     databaseResult.Longitude = longitude;
                     return databaseResult;
@@ -95,20 +96,20 @@ public class WeatherService : IWeatherService
 
             var mergedData = MergeWeatherDataResults(results);
 
-            await SaveWeatherDataToDB(mergedData, request);
+            SaveDataInBackground(mergedData, request);
 
             mergedData.Daily.Remove("temperature_2m_max");
             mergedData.Daily.Remove("temperature_2m_min");
 
-            var graphResult = FormatWeatherDataForFrontend(mergedData.Daily);
+            var graphResult = FormatWeatherData(mergedData.Daily);
             graphResult.Latitude = latitude;
             graphResult.Longitude = longitude;
-            return graphResult;    
+            return graphResult;
 
         }
         catch (Exception ex)
         {
-            throw;
+            throw new Exception(ex.ToString());
         }
     }
 
@@ -240,16 +241,13 @@ public class WeatherService : IWeatherService
         return mergedResponse;
     }
 
-    private async Task<WeatherDataResponse> SaveWeatherDataToDB(WeatherDataResponse weatherData, WeatherDataRequest request)
+    private async Task<WeatherDataResponse> SaveWeatherDataToDB(WeatherDataResponse weatherData, WeatherDataRequest request, DBHandler dbHandler)
     {
         var coords = ParameterMappings.CityMapping[request.Location];
-        var location = await _dbHandler.GetOrCreateLocationAsync(request.Location, coords.Item1, coords.Item2);
-
-        var DBHandler = new DBHandler(_context);
+        var location = await dbHandler.GetOrCreateLocationAsync(request.Location, coords.Item1, coords.Item2);
 
         try
         {
-
             if (weatherData.Daily != null)
             {
                 if (weatherData.Daily.ContainsKey("Date"))
@@ -258,27 +256,27 @@ public class WeatherService : IWeatherService
 
                     if (weatherData.Daily.ContainsKey("temperature_2m_max"))
                     {
-                        await DBHandler.AddTemperatureBulk(weatherData, dateList, location);
+                        await dbHandler.AddTemperatureBulk(weatherData, dateList, location);
                     }
 
                     if (weatherData.Daily.ContainsKey("precipitation_sum"))
                     {
-                        await DBHandler.AddPrecipitationSumBulk(weatherData, dateList, location);
+                        await dbHandler.AddPrecipitationSumBulk(weatherData, dateList, location);
                     }
 
                     if (weatherData.Daily.ContainsKey("wind_speed_10m_max"))
                     {
-                        await DBHandler.AddWindBulk(weatherData, dateList, location);
+                        await dbHandler.AddWindBulk(weatherData, dateList, location);
                     }
 
                     if (weatherData.Daily.ContainsKey("shortwave_radiation_sum"))
                     {
-                        await DBHandler.AddRadiationBulk(weatherData, dateList, location);
+                        await dbHandler.AddRadiationBulk(weatherData, dateList, location);
                     }
 
                     if (weatherData.Daily.ContainsKey("precipitation_hours"))
                     {
-                        await DBHandler.AddPrecipitationHoursBulk(weatherData, dateList, location);
+                        await dbHandler.AddPrecipitationHoursBulk(weatherData, dateList, location);
                     }
                 }
             }
@@ -293,42 +291,11 @@ public class WeatherService : IWeatherService
 
     private async Task<Dictionary<string, List<object>>> GetWeatherDataFromDB(WeatherDataRequest request)
     {
+        var dbHandler = new DBHandler(_context);
+
         var parameterKey = request.Parameters.FirstOrDefault();
 
-        if (string.IsNullOrEmpty(parameterKey) || !ParameterMappings.TableNameMapping.ContainsKey(parameterKey))
-        {
-            throw new ArgumentException("Invalid or missing parameter in request.");
-        }
-
-        var tableName = ParameterMappings.TableNameMapping[parameterKey];
-        
-        Console.WriteLine($"Fetching data from table: {tableName}");
-
-        var locationObject = await _context.Location
-            .FirstOrDefaultAsync(l => l.LocationName == request.Location);
-
-        if (locationObject == null)
-        {
-            throw new ArgumentException($"Location '{request.Location}' not found.");
-        }
-
-        var locationId = locationObject.Id;
-
-        var tableMap = new Dictionary<string, IQueryable<object>>
-        {
-            { "Temperature", _context.Temperature.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) },
-            { "Precipitation", _context.Precipitation.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) },
-            { "PrecipitationHours", _context.PrecipitationHours.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) },
-            { "Wind", _context.Wind.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) },
-            { "Radiation", _context.Radiation.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) }
-        };
-
-        if (!tableMap.ContainsKey(tableName))
-        {
-            throw new ArgumentException($"Invalid table name: {tableName}");
-        }
-
-        var queryResults = await tableMap[tableName].ToListAsync();
+        var queryResults = await dbHandler.GetWeatherDataDynamic(request, parameterKey);
 
         if (queryResults.Count == 0)
         {
@@ -342,6 +309,7 @@ public class WeatherService : IWeatherService
             .ToList();
 
         var result = new Dictionary<string, List<object>>();
+
         foreach (var prop in properties)
         {
             result[prop.Name] = [.. queryResults.Select(d => prop.GetValue(d))];
@@ -350,7 +318,7 @@ public class WeatherService : IWeatherService
         return result;
     }
 
-    private WeatherDataGraphResponse FormatWeatherDataForFrontend(Dictionary<string, List<object>> result)
+    private WeatherDataGraphResponse FormatWeatherData(Dictionary<string, List<object>> result)
     {
         if (!result.ContainsKey("Date") || result.Count != 2)
         {
@@ -382,4 +350,27 @@ public class WeatherService : IWeatherService
             }
         };
     }
+
+    private void SaveDataInBackground(WeatherDataResponse mergedData, WeatherDataRequest request)
+    {
+
+         _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using (var scope = _serviceProvider.CreateScope())
+                    {
+                        var context = scope.ServiceProvider.GetRequiredService<WeatherContext>();
+                        var dbHandler = new DBHandler(context);
+
+                        await SaveWeatherDataToDB(mergedData, request, dbHandler);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error saving weather data to DB: {ex}");
+                }
+            });
+    }
+    
 }
