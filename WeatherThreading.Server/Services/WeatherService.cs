@@ -63,7 +63,7 @@ public class WeatherService : IWeatherService
                 if (await TimeRangeTools.AreDatesContinuousAsync(request, _context))
                 {
                     var result = await GetWeatherDataFromDB(request);
-                    var databaseResult = FormatWeatherData(result);
+                    var databaseResult = FormatWeatherData(result, request);
                     databaseResult.Latitude = latitude;
                     databaseResult.Longitude = longitude;
                     return databaseResult;
@@ -101,7 +101,7 @@ public class WeatherService : IWeatherService
             mergedData.Daily.Remove("temperature_2m_max");
             mergedData.Daily.Remove("temperature_2m_min");
 
-            var graphResult = FormatWeatherData(mergedData.Daily);
+            var graphResult = FormatWeatherData(mergedData.Daily, request);
             graphResult.Latitude = latitude;
             graphResult.Longitude = longitude;
             return graphResult;
@@ -231,9 +231,15 @@ public class WeatherService : IWeatherService
 
         if (mergedResponse.Daily.ContainsKey("temperature_2m_max") && mergedResponse.Daily.ContainsKey("temperature_2m_min"))
         {
-            mergedResponse.Daily["temperature_2m_avg"] = new List<object>();
-            mergedResponse.Daily["temperature_2m_avg"] = mergedResponse.Daily["temperature_2m_max"]
-                .Zip(mergedResponse.Daily["temperature_2m_min"], (max, min) => ((double)max + (double)min) / 2)
+            var maxTemps = mergedResponse.Daily["temperature_2m_max"].Cast<double>().ToList();
+            var minTemps = mergedResponse.Daily["temperature_2m_min"].Cast<double>().ToList();
+
+
+            //calculating the average temperature using PLINQ and max processor core count
+            mergedResponse.Daily["temperature_2m_avg"] = maxTemps
+                .AsParallel()
+                .WithDegreeOfParallelism(Environment.ProcessorCount)
+                .Select((max, index) => (max + minTemps[index]) / 2.0)
                 .Cast<object>()
                 .ToList();
         }
@@ -285,6 +291,7 @@ public class WeatherService : IWeatherService
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"An error orccured {ex}");
             throw;
         }
     }
@@ -318,33 +325,42 @@ public class WeatherService : IWeatherService
         return result;
     }
 
-    private WeatherDataGraphResponse FormatWeatherData(Dictionary<string, List<object>> result)
+    private WeatherDataGraphResponse FormatWeatherData(Dictionary<string, List<object>> result, WeatherDataRequest request)
     {
         if (!result.ContainsKey("Date") || result.Count != 2)
         {
             throw new ArgumentException("Input dictionary must contain 'Date' and one value axis.");
         }
 
-        var dates = result["Date"].Select(x => DateTime.Parse(x.ToString())).ToList();
         var valueKey = result.Keys.First(k => k != "Date");
-        var values = result[valueKey].Select(Convert.ToDouble).ToList();
 
-        if (dates.Count != values.Count)
+        var dateValuePairs = result["Date"]
+            .Select((x, i) => new
+            {
+                Date = DateTime.Parse(x.ToString()),
+                Value = Convert.ToDouble(result[valueKey][i])
+            })
+            .Where(pair => pair.Date >= request.StartDate && pair.Date <= request.EndDate)
+            .ToList();
+
+        if (!dateValuePairs.Any())
         {
-            throw new InvalidOperationException("Date and value lists must have the same length.");
+            throw new InvalidOperationException("No data points found in the specified date range.");
         }
 
-        var chartData = dates.Select((date, i) => new ChartDataPoint
-        {
-                xaxis = date,
-                yaxis = values[i]
-            }).ToList();
+        var chartData = dateValuePairs
+            .Select(pair => new ChartDataPoint
+            {
+                xaxis = pair.Date,
+                yaxis = pair.Value
+            })
+            .ToList();
 
-        return new WeatherDataGraphResponse 
+        return new WeatherDataGraphResponse
         {
             XAxisTitle = "Date",
             YAxisTitle = valueKey,
-            Daily = new Dictionary<string, List<ChartDataPoint>> 
+            Daily = new Dictionary<string, List<ChartDataPoint>>
             {
                 {"data", chartData}
             }
@@ -353,24 +369,28 @@ public class WeatherService : IWeatherService
 
     private void SaveDataInBackground(WeatherDataResponse mergedData, WeatherDataRequest request)
     {
+        /*
+        A seperate Task gets created for database insertion with its own scope so that the response 
+        can return without having the database finish inserting
+        */
 
-         _ = Task.Run(async () =>
-            {
-                try
-                {
-                    using (var scope = _serviceProvider.CreateScope())
-                    {
-                        var context = scope.ServiceProvider.GetRequiredService<WeatherContext>();
-                        var dbHandler = new DBHandler(context);
+        _ = Task.Run(async () =>
+           {
+               try
+               {
+                   using (var scope = _serviceProvider.CreateScope())
+                   {
+                       var context = scope.ServiceProvider.GetRequiredService<WeatherContext>();
+                       var dbHandler = new DBHandler(context);
 
-                        await SaveWeatherDataToDB(mergedData, request, dbHandler);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error saving weather data to DB: {ex}");
-                }
-            });
+                       await SaveWeatherDataToDB(mergedData, request, dbHandler);
+                   }
+               }
+               catch (Exception ex)
+               {
+                   Console.WriteLine($"Error saving weather data to DB: {ex}");
+               }
+           });
     }
-    
+
 }
