@@ -7,11 +7,13 @@ public static class DataProcessor
 {
     public static WeatherDataResponse MergeResults(WeatherData[] results)
     {
+        /*
+        Merge results from the external weather API calls into a single object for easier processing
+        */
         if (results.Length == 0)
         {
             throw new Exception("No weather data results to merge");
         }
-
 
         var mergedResponse = new WeatherDataResponse
         {
@@ -117,6 +119,10 @@ public static class DataProcessor
 
     public static WeatherDataGraphResponse FormatWeatherData(Dictionary<string, List<object>> result, WeatherDataRequest request)
     {
+        /*
+        Converts the weather data from either the API or database into x and y values readable by the frontend and the graph
+        generation library
+        */
         if (!result.ContainsKey("Date") || result.Count != 2)
         {
             throw new ArgumentException("Input dictionary must contain 'Date' and one value axis.");

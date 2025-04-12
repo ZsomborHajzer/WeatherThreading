@@ -21,6 +21,7 @@ public class WeatherService : IWeatherService
         _semaphore = new SemaphoreSlim(2);
     }
 
+    //! Remove
     public async Task<WeatherData> GetHistoricalWeatherDataAsync(string location, DateTime startDate, DateTime endDate)
     {
         /*
@@ -45,6 +46,10 @@ public class WeatherService : IWeatherService
 
     public async Task<WeatherDataGraphResponse> GetProcessedWeatherDataAsync(WeatherDataRequest request)
     {
+        /*
+        Main logic for responding to a request for weather data
+        Checks if the data already exists in the database and either retrieves it or makes a call to the external weather API
+        */
         try
         {
 
@@ -73,6 +78,7 @@ public class WeatherService : IWeatherService
             {
             }
 
+            // Prevent rate-limiting, spread out the load over multiple smaller requests
             var tasks = timeChunks.Select(async chunk =>
             {
                 await _semaphore.WaitAsync();
@@ -120,6 +126,9 @@ public class WeatherService : IWeatherService
         DateTime endDate,
         List<string> parameters)
     {
+        /*
+        Make single request to external API for weather data to return to the frontend
+        */
         var parametersString = string.Join(",", parameters);
         var url = $"{BaseUrl}?latitude={latitude}&longitude={longitude}&start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}&daily={parametersString}";
 
@@ -130,6 +139,7 @@ public class WeatherService : IWeatherService
             throw new Exception($"API request failed: {errorContent}");
         }
 
+        // Parse API response into WeatherData object
         var content = await response.Content.ReadAsStringAsync();
         var weatherData = JsonSerializer.Deserialize<WeatherData>(content, new JsonSerializerOptions
         {
@@ -139,6 +149,7 @@ public class WeatherService : IWeatherService
         return weatherData ?? throw new Exception("Failed to deserialize weather data");
     }
 
+    //! Remove and call the method directly instead?
     private WeatherDataResponse MergeWeatherDataResults(WeatherData[] results)
     {
         var mergedResponse = DataProcessor.MergeResults(results);
@@ -197,6 +208,9 @@ public class WeatherService : IWeatherService
 
     private async Task<Dictionary<string, List<object>>> GetWeatherDataFromDB(WeatherDataRequest request)
     {
+        /*
+        Get weather data from the database based on the request
+        */
         var dbHandler = new DBHandler(_context);
 
         var parameterKey = request.Parameters.FirstOrDefault();

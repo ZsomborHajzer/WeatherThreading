@@ -217,7 +217,10 @@ public class DBHandler
 
     public async Task<List<object>> GetWeatherDataDynamic(WeatherDataRequest request, String parameterKey)
     {
-
+        /*
+        Gets the weather data from the database based on the parameters
+        Queries are mapped to table names which the request works off of
+        */
         if (string.IsNullOrEmpty(parameterKey) || !ParameterMappings.TableNameMapping.ContainsKey(parameterKey))
         {
             throw new ArgumentException("Invalid or missing parameter in request.");

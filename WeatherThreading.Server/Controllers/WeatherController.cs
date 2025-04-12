@@ -15,6 +15,7 @@ public class WeatherController : ControllerBase
         _weatherService = weatherService;
     }
 
+    //!Remove
     [HttpGet("historical")]
     public async Task<IActionResult> GetHistoricalWeather(
         [FromQuery] string location,
