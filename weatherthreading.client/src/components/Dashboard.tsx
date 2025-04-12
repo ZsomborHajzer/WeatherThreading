@@ -36,19 +36,17 @@ const Dashboard: React.FC = () => {
   
     try {
       setLoading(true);
-      setError(""); // Clear previous errors
+      setError(""); 
   
-      // Request payload
       const requestPayload = {
         location: selectedCity,
         startDate: fromDate,
         endDate: toDate,
-        parameters: [selectedYAxis], // Only one parameter is allowed at a time
+        parameters: [selectedYAxis], 
       };
   
       console.log("Request Body:", JSON.stringify(requestPayload));
   
-      // Send the request
       const response = await fetch("http://localhost:8080/api/Weather/processed", {
         method: "POST",
         headers: {
@@ -57,7 +55,6 @@ const Dashboard: React.FC = () => {
         body: JSON.stringify(requestPayload),
       });
   
-      // Log the full response to help diagnose the issue
       console.log("Response Status:", response.status);
       console.log("Response Headers:", response.headers);
   
@@ -65,22 +62,20 @@ const Dashboard: React.FC = () => {
         throw new Error(`Failed to fetch data. Status: ${response.status}`);
       }
   
-      const responseBody = await response.text(); // Get the raw response body
+      const responseBody = await response.text(); 
       console.log("Raw Response Body:", responseBody);
   
       try {
-        const data = JSON.parse(responseBody); // Try to parse the response
+        const data = JSON.parse(responseBody); 
         console.log("Parsed Data:", data);
   
-        // Check if data and data.data exist
         if (!data || !data.daily || !data.daily.data) {
           throw new Error("Response data or data array is missing");
         }
   
-        // Ensure the data is in the correct format for the chart (array of objects with 'name' and 'value')
         const processedData = data.daily.data.map((item: any) => ({
-          name: item.xaxis, // Date 
-          value: item.yaxis, // The corresponding data value
+          name: item.xaxis, 
+          value: item.yaxis, 
         }));
   
         console.log("Processed Data:", processedData);
@@ -172,13 +167,26 @@ const Dashboard: React.FC = () => {
                 dataKey="name" 
                 tickFormatter={(date: string) => {
                   const dateObj = new Date(date);
-                  return dateObj.toLocaleDateString(); // Format date
+                  return dateObj.toLocaleDateString(); 
                 }} 
-                angle={45} // Rotate the labels by 45 degrees
-                textAnchor="start" // Align the text to the start of the rotated label
+                angle={45} 
+                textAnchor="start" 
+                label={{
+                  value: selectedCity || "Location",
+                  position: "outsideBottom",
+                  offset: 20,
+                  style: { fontWeight: "bold" }
+                }}
               />
               <YAxis 
-                domain={['auto', 'auto']} // Dynamically scale Y-axis based on data
+                domain={['auto', 'auto']} 
+                label={{
+                  value: yAxisOptions.find(opt => opt.value === selectedYAxis)?.label || "Value",
+                  angle: -90,
+                  position: "outsideLeft",
+                  offset: 10,
+                  style: { fontWeight: "bold" }
+                }}
               />
               <Tooltip />
               <Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} dot={false} />
