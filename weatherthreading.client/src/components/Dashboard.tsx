@@ -174,7 +174,7 @@ const Dashboard: React.FC = () => {
                 label={{
                   value: selectedCity || "Location",
                   position: "outsideBottom",
-                  offset: 20,
+                  offset: 40,
                   style: { fontWeight: "bold" }
                 }}
               />
@@ -184,7 +184,7 @@ const Dashboard: React.FC = () => {
                   value: yAxisOptions.find(opt => opt.value === selectedYAxis)?.label || "Value",
                   angle: -90,
                   position: "outsideLeft",
-                  offset: 10,
+                  offset: 20,
                   style: { fontWeight: "bold" }
                 }}
               />
