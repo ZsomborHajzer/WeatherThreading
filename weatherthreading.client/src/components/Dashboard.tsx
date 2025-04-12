@@ -2,6 +2,7 @@ import { LineChart, XAxis, YAxis, Line, Tooltip, CartesianGrid, ResponsiveContai
 import React, { useState } from "react";
 import "../index.css";
 
+// Predefined list of cities for X axis
 const cities = [
   "Budapest, Hungary", "Bangkok, Thailand", "Zurich, Switzerland", "Los Angeles, USA", "Halifax, Canada", 
   "Rome, Italy", "London, UK", "Riga, Latvia", "Barcelona, Spain", "Shanghai, China", 
@@ -73,6 +74,7 @@ const Dashboard: React.FC = () => {
           throw new Error("Response data or data array is missing");
         }
   
+        //Convert backend response into Recharts-compatible format
         const processedData = data.daily.data.map((item: any) => ({
           name: item.xaxis, 
           value: item.yaxis, 
