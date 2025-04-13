@@ -1,4 +1,3 @@
-
 using Microsoft.EntityFrameworkCore;
 using WeatherThreading.Models;
 
@@ -11,10 +10,10 @@ public class TimeRangeTools
     public static List<(DateTime Start, DateTime End)> SplitTimeRange(DateTime startDate, DateTime endDate)
     {
         /*
-            * This creates a list of time ranges from the user input
-            * It defaults the first date to the first day of the selected year
-            * and the last date to the last day of the selected year
-        */
+         * This creates a list of time ranges from the user input
+         * It defaults the first date to the first day of the selected year
+         * and the last date to the last day of the selected year
+         */
         startDate = new DateTime(startDate.Year, 1, 1);
         endDate = new DateTime(endDate.Year, 12, 31);
 
@@ -49,8 +48,8 @@ public class TimeRangeTools
         In other words, checks if there are gaps in the data between the start and end dates
         */
         var expectedDates = Enumerable.Range(0, (request.EndDate - request.StartDate).Days + 1)
-                                    .Select(offset => request.StartDate.Date.AddDays(offset))
-                                    .ToHashSet();
+            .Select(offset => request.StartDate.Date.AddDays(offset))
+            .ToHashSet();
 
         IEnumerable<DateTime> existingDates;
 

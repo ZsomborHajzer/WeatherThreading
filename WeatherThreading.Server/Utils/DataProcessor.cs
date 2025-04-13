@@ -2,7 +2,6 @@ using WeatherThreading.Models;
 
 namespace WeatherThreading.Services;
 
-
 public static class DataProcessor
 {
     public static WeatherDataResponse MergeResults(WeatherData[] results)
@@ -28,6 +27,7 @@ public static class DataProcessor
             {
                 mergedResponse.Daily["Date"] = new List<object>();
             }
+
             mergedResponse.Daily["Date"].AddRange(result.Daily.Time.Select(t => (object)t));
 
             // Merge temperature data
@@ -37,7 +37,9 @@ public static class DataProcessor
                 {
                     mergedResponse.Daily["temperature_2m_max"] = new List<object>();
                 }
-                mergedResponse.Daily["temperature_2m_max"].AddRange(result.Daily.Temperature2mMax.Select(t => (object)t));
+
+                mergedResponse.Daily["temperature_2m_max"]
+                    .AddRange(result.Daily.Temperature2mMax.Select(t => (object)t));
             }
 
             if (result.Daily.Temperature2mMin.Any())
@@ -46,7 +48,9 @@ public static class DataProcessor
                 {
                     mergedResponse.Daily["temperature_2m_min"] = new List<object>();
                 }
-                mergedResponse.Daily["temperature_2m_min"].AddRange(result.Daily.Temperature2mMin.Select(t => (object)t));
+
+                mergedResponse.Daily["temperature_2m_min"]
+                    .AddRange(result.Daily.Temperature2mMin.Select(t => (object)t));
             }
 
             // Merge humidity data
@@ -56,7 +60,9 @@ public static class DataProcessor
                 {
                     mergedResponse.Daily["relative_humidity_2m"] = new List<object>();
                 }
-                mergedResponse.Daily["relative_humidity_2m"].AddRange(result.Daily.RelativeHumidity2m.Select(h => (object)h));
+
+                mergedResponse.Daily["relative_humidity_2m"]
+                    .AddRange(result.Daily.RelativeHumidity2m.Select(h => (object)h));
             }
 
             // Merge precipitation data
@@ -66,7 +72,9 @@ public static class DataProcessor
                 {
                     mergedResponse.Daily["precipitation_sum"] = new List<object>();
                 }
-                mergedResponse.Daily["precipitation_sum"].AddRange(result.Daily.PrecipitationSum.Select(p => (object)p));
+
+                mergedResponse.Daily["precipitation_sum"]
+                    .AddRange(result.Daily.PrecipitationSum.Select(p => (object)p));
             }
 
             if (result.Daily.PrecipitationHours.Any())
@@ -75,7 +83,9 @@ public static class DataProcessor
                 {
                     mergedResponse.Daily["precipitation_hours"] = new List<object>();
                 }
-                mergedResponse.Daily["precipitation_hours"].AddRange(result.Daily.PrecipitationHours.Select(p => (object)p));
+
+                mergedResponse.Daily["precipitation_hours"]
+                    .AddRange(result.Daily.PrecipitationHours.Select(p => (object)p));
             }
 
             // Merge wind speed data
@@ -85,6 +95,7 @@ public static class DataProcessor
                 {
                     mergedResponse.Daily["wind_speed_10m_max"] = new List<object>();
                 }
+
                 mergedResponse.Daily["wind_speed_10m_max"].AddRange(result.Daily.WindSpeed.Select(w => (object)w));
             }
 
@@ -95,11 +106,14 @@ public static class DataProcessor
                 {
                     mergedResponse.Daily["shortwave_radiation_sum"] = new List<object>();
                 }
-                mergedResponse.Daily["shortwave_radiation_sum"].AddRange(result.Daily.ShortWaveRadiationSum.Select(s => (object)s));
+
+                mergedResponse.Daily["shortwave_radiation_sum"]
+                    .AddRange(result.Daily.ShortWaveRadiationSum.Select(s => (object)s));
             }
         }
 
-        if (mergedResponse.Daily.ContainsKey("temperature_2m_max") && mergedResponse.Daily.ContainsKey("temperature_2m_min"))
+        if (mergedResponse.Daily.ContainsKey("temperature_2m_max") &&
+            mergedResponse.Daily.ContainsKey("temperature_2m_min"))
         {
             var maxTemps = mergedResponse.Daily["temperature_2m_max"].Cast<double>().ToList();
             var minTemps = mergedResponse.Daily["temperature_2m_min"].Cast<double>().ToList();
@@ -117,7 +131,8 @@ public static class DataProcessor
         return mergedResponse;
     }
 
-    public static WeatherDataGraphResponse FormatWeatherData(Dictionary<string, List<object>> result, WeatherDataRequest request)
+    public static WeatherDataGraphResponse FormatWeatherData(Dictionary<string, List<object>> result,
+        WeatherDataRequest request)
     {
         /*
         Converts the weather data from either the API or database into x and y values readable by the frontend and the graph
@@ -158,7 +173,7 @@ public static class DataProcessor
             YAxisTitle = valueKey,
             Daily = new Dictionary<string, List<ChartDataPoint>>
             {
-                {"data", chartData}
+                { "data", chartData }
             }
         };
     }

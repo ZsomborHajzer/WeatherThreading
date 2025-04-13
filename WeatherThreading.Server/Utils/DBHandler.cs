@@ -28,6 +28,7 @@ public class DBHandler
             _context.Location.Add(location);
             await _context.SaveChangesAsync();
         }
+
         return location;
     }
 
@@ -44,12 +45,12 @@ public class DBHandler
             .ToListAsync();
 
         var temperatureAverages = new double[temperatureMaxList.Count];
-        
+
 
         for (int i = 0; i < temperatureMaxList.Count; i++)
         {
             var date = DateTime.Parse(timeList[i]).Date;
-            
+
             if (existingDates.Contains(date))
                 continue;
 
@@ -71,7 +72,8 @@ public class DBHandler
         }
     }
 
-    public async Task AddPrecipitationHoursBulk(WeatherDataResponse weatherData, List<string> timeList, Location location)
+    public async Task AddPrecipitationHoursBulk(WeatherDataResponse weatherData, List<string> timeList,
+        Location location)
     {
         var precipitationHours = new List<PrecipitationHours>();
         var precipitationHoursList = weatherData.Daily["precipitation_hours"].Cast<double>().ToList();
@@ -212,6 +214,7 @@ public class DBHandler
         {
             throw new ArgumentException($"Location '{request.Location}' not found.");
         }
+
         return locationObject;
     }
 
@@ -227,7 +230,7 @@ public class DBHandler
         }
 
         var tableName = ParameterMappings.TableNameMapping[parameterKey];
-        
+
         Console.WriteLine($"Fetching data from table: {tableName}");
 
         var locationObject = await GetLocation(request);
@@ -236,11 +239,31 @@ public class DBHandler
 
         var tableQueryMap = new Dictionary<string, IQueryable<object>>
         {
-            { "Temperature", _context.Temperature.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) },
-            { "Precipitation", _context.Precipitation.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) },
-            { "PrecipitationHours", _context.PrecipitationHours.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) },
-            { "Wind", _context.Wind.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) },
-            { "Radiation", _context.Radiation.Where(x => x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate) }
+            {
+                "Temperature",
+                _context.Temperature.Where(x =>
+                    x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate)
+            },
+            {
+                "Precipitation",
+                _context.Precipitation.Where(x =>
+                    x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate)
+            },
+            {
+                "PrecipitationHours",
+                _context.PrecipitationHours.Where(x =>
+                    x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate)
+            },
+            {
+                "Wind",
+                _context.Wind.Where(x =>
+                    x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate)
+            },
+            {
+                "Radiation",
+                _context.Radiation.Where(x =>
+                    x.LocationId == locationId && x.Date >= request.StartDate && x.Date <= request.EndDate)
+            }
         };
 
         if (!tableQueryMap.ContainsKey(tableName))

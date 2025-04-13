@@ -15,25 +15,6 @@ public class WeatherController : ControllerBase
         _weatherService = weatherService;
     }
 
-    //!Remove
-    [HttpGet("historical")]
-    public async Task<IActionResult> GetHistoricalWeather(
-        [FromQuery] string location,
-        [FromQuery] DateTime startDate,
-        [FromQuery] DateTime endDate)
-    {
-        try
-        {
-            var weatherData = await _weatherService.GetHistoricalWeatherDataAsync(
-                location, startDate, endDate);
-            return Ok(weatherData);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
     [HttpPost("processed")]
     public async Task<IActionResult> GetProcessedWeatherData([FromBody] WeatherDataRequest request)
     {

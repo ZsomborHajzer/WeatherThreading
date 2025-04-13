@@ -32,7 +32,7 @@ Before running the application, ensure no processes are using port 3306 (commonl
 
 1. Clone the repository:
 ```bash
-git clone [repository-url]
+git clone https://github.com/ZsomborHajzer/WeatherThreading.git
 cd WeatherThreading
 ```
 

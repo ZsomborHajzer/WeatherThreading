@@ -10,13 +10,10 @@ public class WeatherService : IWeatherService
     private const string BaseUrl = "https://archive-api.open-meteo.com/v1/archive";
     private readonly WeatherContext _context;
     private readonly SemaphoreSlim _semaphore;
-    private readonly IServiceProvider _serviceProvider;
-
-    public WeatherService(HttpClient httpClient, WeatherContext context, IServiceProvider serviceProvider)
+    public WeatherService(HttpClient httpClient, WeatherContext context)
     {
         _httpClient = httpClient;
         _context = context;
-        _serviceProvider = serviceProvider;
         //Limited to 2 becuase any more would cause the requests to be sent to quickly and we would get rate limited
         _semaphore = new SemaphoreSlim(2);
     }
@@ -76,6 +73,7 @@ public class WeatherService : IWeatherService
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"An error occured: {ex}");
             }
 
             // Prevent rate-limiting, spread out the load over multiple smaller requests
@@ -100,9 +98,11 @@ public class WeatherService : IWeatherService
 
             var results = await Task.WhenAll(tasks);
 
-            var mergedData = MergeWeatherDataResults(results);
+            var mergedData = DataProcessor.MergeResults(results);
 
-            SaveDataInBackground(mergedData, request);
+            var dbHandler = new DBHandler(_context);
+
+            await SaveWeatherDataToDB(mergedData, request, dbHandler);
 
             mergedData.Daily.Remove("temperature_2m_max");
             mergedData.Daily.Remove("temperature_2m_min");
@@ -147,14 +147,6 @@ public class WeatherService : IWeatherService
         });
 
         return weatherData ?? throw new Exception("Failed to deserialize weather data");
-    }
-
-    //! Remove and call the method directly instead?
-    private WeatherDataResponse MergeWeatherDataResults(WeatherData[] results)
-    {
-        var mergedResponse = DataProcessor.MergeResults(results);
-
-        return mergedResponse;
     }
 
     private async Task<WeatherDataResponse> SaveWeatherDataToDB(WeatherDataResponse weatherData, WeatherDataRequest request, DBHandler dbHandler)
@@ -237,31 +229,4 @@ public class WeatherService : IWeatherService
 
         return result;
     }
-
-    private void SaveDataInBackground(WeatherDataResponse mergedData, WeatherDataRequest request)
-    {
-        /*
-        A seperate Task gets created for database insertion with its own scope so that the response 
-        can return without having the database finish inserting
-        */
-
-        _ = Task.Run(async () =>
-           {
-               try
-               {
-                   using (var scope = _serviceProvider.CreateScope())
-                   {
-                       var context = scope.ServiceProvider.GetRequiredService<WeatherContext>();
-                       var dbHandler = new DBHandler(context);
-
-                       await SaveWeatherDataToDB(mergedData, request, dbHandler);
-                   }
-               }
-               catch (Exception ex)
-               {
-                   Console.WriteLine($"Error saving weather data to DB: {ex}");
-               }
-           });
-    }
-
 }
