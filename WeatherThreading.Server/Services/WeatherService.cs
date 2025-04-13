@@ -206,6 +206,11 @@ public class WeatherService : IWeatherService
 
         var parameterKey = request.Parameters.FirstOrDefault();
 
+        if (parameterKey == null)
+        {
+            throw new Exception("ParameterKey can not be null");
+        }
+
         var queryResults = await dbHandler.GetWeatherDataDynamic(request, parameterKey);
 
         if (queryResults.Count == 0)
