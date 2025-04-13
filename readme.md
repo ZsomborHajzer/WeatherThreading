@@ -56,6 +56,11 @@ mergedData.Daily["temperature_2m_avg"] = maxTemps
 - Processes chunks concurrently while respecting API rate limits
 - Merges results using parallel processing
 
+## Coding conventions used
+
+- Backend: PascalCasing
+- Frontend: camelCasing
+
 ## Requirements
 
 - [Docker](https://docs.docker.com/get-docker/)
