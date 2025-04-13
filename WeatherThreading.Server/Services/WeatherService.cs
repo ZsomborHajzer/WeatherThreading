@@ -18,7 +18,6 @@ public class WeatherService : IWeatherService
         _semaphore = new SemaphoreSlim(2);
     }
 
-    //! Remove
     public async Task<WeatherData> GetHistoricalWeatherDataAsync(string location, DateTime startDate, DateTime endDate)
     {
         /*
