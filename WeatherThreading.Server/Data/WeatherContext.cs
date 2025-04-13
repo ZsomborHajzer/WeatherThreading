@@ -1,6 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using WeatherThreading.Server;
-using WeatherThreading.Models;
 
 namespace WeatherThreading.Models;
 

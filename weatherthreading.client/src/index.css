@@ -91,8 +91,8 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: white; /* Changed to white */
-  color: #213547; /* Dark text for contrast */
+  background-color: white; 
+  color: #213547; 
   cursor: pointer;
   transition: background-color 0.25s;
   width: 100%;
@@ -100,10 +100,10 @@ button {
 }
 
 button:hover {
-  background-color: #f0f0f0; /* Slightly darker on hover */
+  background-color: #f0f0f0; 
 }
 
-/* Light mode adjustments */
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
